@@ -1,0 +1,16 @@
+[package]
+name = "full_calc"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "llcalc"
+path = "src/main.rs"
+
+[lib]
+name = "full_calc"
+path = "src/lib.rs"
+
+[dependencies]
+crossterm = "0.28.1"
+ratatui = "0.29.0"

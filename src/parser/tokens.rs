@@ -27,7 +27,7 @@ static OPERATORS: &[(&str, Token, u8)] = &[
     (";", Token::Semicolon, 9),
 ];
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Debug)]
 pub enum Token {
     Identifier(String),
     Number(String),
@@ -158,39 +158,49 @@ pub fn tokenize(line: &str) -> Result<Vec<Token>, Box<dyn Error>> {
     token_state.consume()
 }
 
-// rewrite the tests in the future with some utility functions for building single tokens
-// maybe I don't ever end up giving a shit though
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-// #[cfg(test)]
-// mod tests {
-//     use super::tokenize;
-
-//     fn map(vec: &Vec<String>) -> Vec<&str> {
-//         vec.iter().map(|slice| slice.as_str()).collect()
-//     }
-
-//     #[test]
-//     fn basic_generation() {
-//         let t = tokenize("def f(a, b) = a * b").unwrap();
-//         assert_eq!(map(&t), vec!["def","f","(","a",",","b",")","=","a","*","b"]);
-
-//         let t = tokenize("1 + 1 => hi").unwrap();
-//         assert_eq!(map(&t), vec!["1","+","1","=>","hi"]);
-
-//     }
-//     #[test]
-//     fn nesting() {
-//         let t = tokenize("2 + ( 4*4 ) = ( 1 + too )").unwrap();
-//         assert_eq!(map(&t), vec!["2","+","(","4","*","4",")","=","(","1","+","too",")"]);
-//     }
-//     #[test]
-//     fn whitespace() {
-//         let t = tokenize("   foryou  = 2*2+pi").unwrap();
-//         assert_eq!(map(&t), vec!["foryou","=","2","*","2","+","pi"]);
-//     }
-//     #[test]
-//     fn crunched_ops() {
-//         let t = tokenize("-(var+-2)^-1=>var2").unwrap();
-//         assert_eq!(map(&t), vec!["-","(","var","+","-","2",")","^","-","1","=>","var2"]);
-//     }
-// }
+    #[test]
+    fn basic_generation() {
+        let t = tokenize("hello there").unwrap();
+        assert_eq!(t, vec![
+            Token::Identifier("hello".to_string()),
+            Token::Identifier("there".to_string()),
+        ]);
+    }
+    #[test]
+    fn literals() {
+        let t = tokenize(".123+hi-var2").unwrap();
+        assert_eq!(t, vec![
+            Token::Number(".123".to_string()),
+            Token::Plus,
+            Token::Identifier("hi".to_string()),
+            Token::Minus,
+            Token::Identifier("var2".to_string()),
+        ]);
+    }
+    #[test]
+    fn operator_mashing() {
+        let t = tokenize("3^-1=>-a").unwrap();
+        assert_eq!(t, vec![
+            Token::Number("3".to_string()),
+            Token::Pow,
+            Token::Minus,
+            Token::Number("1".to_string()),
+            Token::AltAssign,
+            Token::Minus,
+            Token::Identifier("a".to_string()),
+        ]);
+    }
+    #[test]
+    fn invalid_operator() {
+        let t = vec![
+            tokenize("?"),
+            tokenize("a <= 1"),
+            tokenize("#hi"),
+        ];
+        t.iter().for_each(|t| assert!(t.is_err()));
+    }
+}

@@ -1,15 +1,31 @@
 // no parsing implemented for matrices yet
 
+use std::fmt;
+
 use super::tokens::Token;
 
 const MAX_BINARY_PRECEDENCE: i8 = 3;
 
+#[derive(Debug)]
 pub enum SyntaxError {
     NoClosingParen(Vec<Expression>),
     CallNonIdentifier(Token),
     UnexpectedToken(Token),
 }
 
+impl fmt::Display for SyntaxError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            SyntaxError::NoClosingParen(expressions) => write!(f, "no closing parentheses around {:?}", expressions),
+            SyntaxError::CallNonIdentifier(token) => write!(f, "attempting to call {:?} as a function", token),
+            SyntaxError::UnexpectedToken(token) => write!(f, "unexpected {:?}", token),
+        }
+    }
+}
+
+impl std::error::Error for SyntaxError {}
+
+#[derive(PartialEq, Debug)]
 pub enum Expression {
     Empty,
     Identifier(String),
@@ -172,4 +188,105 @@ impl TreeBuilder {
 
 pub fn generate_syntax_tree(tokens: Vec<Token>) -> Result<Expression, SyntaxError> {
     TreeBuilder::new(tokens).parse()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::parser::tokens::*;
+
+    fn e(s: &str) -> Expression {
+        let tokens = tokenize(s).unwrap();
+        generate_syntax_tree(tokens).unwrap()
+    }
+
+    fn num(s: &str) -> Box<Expression> {
+        Box::new(Expression::Number(s.to_string()))
+    }
+    fn bin(e1: Box<Expression>, op: Token, e2: Box<Expression>) -> Box<Expression> {
+        Box::new(Expression::Binary(e1, op, e2))
+    }
+    fn unary(op: Token, e1: Box<Expression>) -> Box<Expression> {
+        Box::new(Expression::Unary(op, e1))
+    }
+    fn group(e1: Box<Expression>) -> Box<Expression> {
+        Box::new(Expression::Group(e1))
+    }
+    fn func(fname: &str, args: Vec<Expression>) -> Box<Expression> {
+        Box::new(Expression::FuncCall(fname.to_string(), args))
+    }
+
+    #[test]
+    fn binary_ops() {
+        assert_eq!(e("1 + 2"), Expression::Binary(
+            num("1"),
+            Token::Plus,
+            num("2"),
+        ));
+    }
+    #[test]
+    fn operator_chaining() {
+        assert_eq!(e("1 - 2 * 3 - 4"), Expression::Binary(
+            bin(
+                num("1"),
+                Token::Minus,
+                bin(
+                    num("2"),
+                    Token::Mult,
+                    num("3"),
+                ),
+            ),
+            Token::Minus,
+            num("4"),
+        ))
+    }
+    #[test]
+    fn unary_ops() {
+        assert_eq!(
+            e("2 * -2 + 3"),
+            Expression::Binary(
+                bin(
+                    num("2"),
+                    Token::Mult,
+                    unary(Token::Minus, num("2")),
+                ),
+                Token::Plus,
+                num("3"),
+            )
+        );
+    }
+    #[test]
+    fn using_parentheses() {
+        assert_eq!(
+            e("2^(-1 * (24))"),
+            Expression::Binary(
+                num("2"),
+                Token::Pow,
+                group(bin(
+                    unary(Token::Minus, num("1")),
+                    Token::Mult,
+                    group(num("24")),
+                ))
+            )
+        );
+    }
+    #[test]
+    fn calling_functions() {
+        assert_eq!(
+            e("max(1, 2+4, 3) + 1"),
+            Expression::Binary(
+                func("max", vec![
+                    *num("1"),
+                    *bin(
+                        num("2"),
+                        Token::Plus,
+                        num("4"),
+                    ),
+                    *num("3"),
+                ]),
+                Token::Plus,
+                num("1"),
+            )
+        )
+    }
 }

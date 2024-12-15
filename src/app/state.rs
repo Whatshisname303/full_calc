@@ -1,6 +1,8 @@
 use std::io;
+use std::collections::HashMap;
 
 use crate::parser::{self, syntax_tree, tokens::Token};
+use super::executor::Value;
 
 use ratatui::{
     prelude::*,
@@ -8,11 +10,13 @@ use ratatui::{
     DefaultTerminal,
 };
 
+
 #[derive(Debug, Default)]
 pub struct App {
     pub counter: u8,
     pub history: Vec<String>,
     pub current_line: String,
+    pub vars: HashMap<String, Value>,
     pub exit: bool,
 }
 
@@ -46,6 +50,7 @@ impl App {
     fn handle_key_down(&mut self, key_event: KeyEvent) {
         match key_event.code {
             KeyCode::Enter => self.execute_line(),
+            KeyCode::Backspace => {self.current_line.pop();},
             KeyCode::Left => self.decrement_counter(),
             KeyCode::Right => self.increment_counter(),
             KeyCode::Char(char) => {
@@ -67,10 +72,18 @@ impl App {
             return;
         }
 
-        let root_expression = syntax_tree::generate_syntax_tree(tokens);
-        root_expression.unwrap_or_else(|_| panic!("Bugged code"));
+        let execution_response = match syntax_tree::generate_syntax_tree(tokens) {
+            Ok(tree) => match self.execute(tree) {
+                Ok(value) => {
+                    // set ans to value
+                    value.to_display_string()
+                },
+                Err(e) => e.to_string(),
+            },
+            Err(e) => e.to_string(),
+        };
 
-        // execute syntax tree
+        self.history.push(execution_response);
     }
 
     fn exit(&mut self) {

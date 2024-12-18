@@ -27,6 +27,7 @@ pub enum RuntimeError {
     UnknownIdentifier(String),
     ParserFailure(String),
     InvalidOperation(String),
+    AssigningToValue(String),
 }
 
 impl fmt::Display for RuntimeError {
@@ -64,72 +65,90 @@ impl App {
                 _ => Err(RuntimeError::ParserFailure(format!("{:?} of {:?}", op, input)))
             },
             Expression::Binary(lhs, op, rhs) => {
-                let lval = self.execute(*lhs)?;
-                let rval = self.execute(*rhs)?;
-                match op {
-                    Token::Plus => match lval {
-                        Value::Number(num1) => match rval {
-                            Value::Number(num2) => Ok(Value::Number(num1 + num2)),
-                            Value::Matrix(_) => Err(RuntimeError::InvalidOperation(format!("{:?} + {:?}", lval, rval))),
+                if let Token::Assign = op {
+                    match *lhs {
+                        Expression::Identifier(identifier) => {
+                            let value = self.execute(*rhs)?;
+                            self.vars.insert(identifier, value.clone());
+                            Ok(value)
                         },
-                        Value::Matrix(mut mat1) => match rval {
-                            Value::Number(_) => Err(RuntimeError::InvalidOperation(format!("matrix + {:?}", rval))),
-                            Value::Matrix(ref mat2) => {
-                                for (vec1, vec2) in iter::zip(mat1.iter_mut(), mat2) {
-                                    for (num1, num2) in iter::zip(vec1, vec2) {
-                                        *num1 += num2;
+                        _ => Err(RuntimeError::AssigningToValue(self.execute(*rhs)?.to_display_string())),
+                    }
+                } else if let Token::AltAssign = op {
+                    match *rhs {
+                        Expression::Identifier(identifier) => {
+                            let value = self.execute(*lhs)?;
+                            self.vars.insert(identifier, value.clone());
+                            Ok(value)
+                        },
+                        _ => Err(RuntimeError::AssigningToValue(self.execute(*rhs)?.to_display_string())),
+                    }
+                } else {
+                    let lval = self.execute(*lhs)?;
+                    let rval = self.execute(*rhs)?;
+                    match op {
+                        Token::Plus => match lval {
+                            Value::Number(num1) => match rval {
+                                Value::Number(num2) => Ok(Value::Number(num1 + num2)),
+                                Value::Matrix(_) => Err(RuntimeError::InvalidOperation(format!("{:?} + {:?}", lval, rval))),
+                            },
+                            Value::Matrix(mut mat1) => match rval {
+                                Value::Number(_) => Err(RuntimeError::InvalidOperation(format!("matrix + {:?}", rval))),
+                                Value::Matrix(ref mat2) => {
+                                    for (vec1, vec2) in iter::zip(mat1.iter_mut(), mat2) {
+                                        for (num1, num2) in iter::zip(vec1, vec2) {
+                                            *num1 += num2;
+                                        }
                                     }
-                                }
-                                Ok(Value::Matrix(mat1))
+                                    Ok(Value::Matrix(mat1))
+                                },
                             },
                         },
-                    },
-                    Token::Minus => match lval {
-                        Value::Number(num1) => match rval {
-                            Value::Number(num2) => Ok(Value::Number(num1 - num2)),
-                            Value::Matrix(_) => Err(RuntimeError::InvalidOperation(format!("{:?} - {:?}", lval, rval))),
-                        },
-                        Value::Matrix(mut mat1) => match rval {
-                            Value::Number(_) => Err(RuntimeError::InvalidOperation(format!("matrix - {:?}", rval))),
-                            Value::Matrix(ref mat2) => {
-                                for (vec1, vec2) in iter::zip(mat1.iter_mut(), mat2) {
-                                    for (num1, num2) in iter::zip(vec1, vec2) {
-                                        *num1 -= num2;
+                        Token::Minus => match lval {
+                            Value::Number(num1) => match rval {
+                                Value::Number(num2) => Ok(Value::Number(num1 - num2)),
+                                Value::Matrix(_) => Err(RuntimeError::InvalidOperation(format!("{:?} - {:?}", lval, rval))),
+                            },
+                            Value::Matrix(mut mat1) => match rval {
+                                Value::Number(_) => Err(RuntimeError::InvalidOperation(format!("matrix - {:?}", rval))),
+                                Value::Matrix(ref mat2) => {
+                                    for (vec1, vec2) in iter::zip(mat1.iter_mut(), mat2) {
+                                        for (num1, num2) in iter::zip(vec1, vec2) {
+                                            *num1 -= num2;
+                                        }
                                     }
-                                }
-                                Ok(Value::Matrix(mat1))
+                                    Ok(Value::Matrix(mat1))
+                                },
                             },
                         },
-                    },
-                    Token::Mult => match lval {
-                        Value::Number(num1) => match rval {
-                            Value::Number(num2) => Ok(Value::Number(num1 * num2)),
-                            Value::Matrix(mut mat2) => {
-                                for vec in mat2.iter_mut() {
-                                    for num in vec {
-                                        *num *= num1;
+                        Token::Mult => match lval {
+                            Value::Number(num1) => match rval {
+                                Value::Number(num2) => Ok(Value::Number(num1 * num2)),
+                                Value::Matrix(mut mat2) => {
+                                    for vec in mat2.iter_mut() {
+                                        for num in vec {
+                                            *num *= num1;
+                                        }
                                     }
-                                }
-                                Ok(Value::Matrix(mat2))
+                                    Ok(Value::Matrix(mat2))
+                                },
+                            },
+                            Value::Matrix(mut mat1) => match rval {
+                                Value::Number(num2) => {
+                                    for vec in mat1.iter_mut() {
+                                        for num in vec {
+                                            *num *= num2;
+                                        }
+                                    }
+                                    Ok(Value::Matrix(mat1))
+                                },
+                                Value::Matrix(_mat2) => todo!(),
                             },
                         },
-                        Value::Matrix(mut mat1) => match rval {
-                            Value::Number(num2) => {
-                                for vec in mat1.iter_mut() {
-                                    for num in vec {
-                                        *num *= num2;
-                                    }
-                                }
-                                Ok(Value::Matrix(mat1))
-                            },
-                            Value::Matrix(_mat2) => todo!(),
-                        },
-                    },
-                    Token::Div => todo!(),
-                    Token::Pow => todo!(),
-                    Token::Assign => todo!(),
-                    Token::AltAssign => todo!(),
-                    _ => Err(RuntimeError::ParserFailure("ops got set up weird".into())),
+                        Token::Div => todo!(),
+                        Token::Pow => todo!(),
+                        _ => Err(RuntimeError::ParserFailure("ops got set up weird".into())),
+                    }
                 }
             },
             Expression::FuncCall(_fname, _args) => {

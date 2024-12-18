@@ -48,12 +48,25 @@ pub enum Token {
     Semicolon,
 }
 
+impl Token {
+    pub fn is_binary_op(&self) -> bool {
+        match *self {
+            Token::Plus | Token::Minus |
+            Token::Mult | Token::Div |
+            Token::Pow |
+            Token::Assign | Token::AltAssign => true,
+            _ => false,
+        }
+    }
+}
+
 // might want to add type as a struct field so not constantly recomputing
 #[derive(Default)]
 struct TokenState {
     tokens: Vec<Token>,
     current_buffer: String,
 }
+
 
 impl TokenState {
     fn continues_op(&self, ch: char) -> bool {

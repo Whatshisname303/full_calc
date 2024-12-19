@@ -1,53 +1,72 @@
-use std::fs;
-use std::path::Path;
+use ratatui::style::Color;
+
+#[derive(Debug)]
+pub struct Theme {
+    number: Color,
+    identifier: Color,
+    unknown_identifier: Color,
+    function: Color,
+    command: Color,
+    operator: Color,
+    line_background: Color,
+    result_background: Color,
+    panel_background: Color,
+    divider: Color,
+    text: Color,
+    cursor: Color,
+
+    v_show_dividers: bool,
+    v_cursor: char,
+}
+
+impl Default for Theme {
+    fn default() -> Self {
+        Theme {
+            number: Color::Green,
+            identifier: Color::LightGreen,
+            unknown_identifier: Color::Cyan,
+            function: Color::LightMagenta,
+            command: Color::Red,
+            operator: Color::LightYellow,
+            line_background: Color::Gray,
+            result_background: Color::Black,
+            panel_background: Color::DarkGray,
+            divider: Color::White,
+            text: Color::White,
+            cursor: Color::White,
+            v_show_dividers: true,
+            v_cursor: '|',
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum Panel {
+    Variables,
+    Autocomplete,
+    ExpPreview,
+}
 
 #[derive(Debug)]
 pub struct Config {
     pub show_output: bool,
+    pub auto_brace: bool,
+    pub expand_matrices: bool,
+    pub is_radians: bool,
+
+    pub theme: Theme,
+    pub panels: Vec<Panel>
 }
 
 impl Default for Config {
     fn default() -> Self {
         Config {
             show_output: true,
+            auto_brace: true,
+            expand_matrices: true,
+            is_radians: false,
+            theme: Theme::default(),
+            panels: vec![Panel::ExpPreview, Panel::Autocomplete, Panel::Variables],
         }
     }
-}
-
-pub fn load_index() -> String {
-    if let Some(path) = get_config_path() {
-        if let Ok(script) = fs::read_to_string(path.join("init.txt")) {
-            return script;
-        }
-    }
-    return String::new();
-}
-
-// pub fn get_config() -> Config {
-//     let config = match get_config_path() {
-//         Some(path) => {
-
-//         },
-//         None => {},
-//     };
-
-//     Config {}
-// }
-
-fn get_config_path() -> Option<&'static Path> {
-    let bundled = Path::new("config");
-
-    if bundled.exists() {
-        return Some(bundled);
-    }
-
-    // will add platform specific stuff soon
-
-    let linux_config = Path::new("~/.config/full_calc");
-
-    if linux_config.exists() {
-        return Some(linux_config)
-    }
-
-    None
 }

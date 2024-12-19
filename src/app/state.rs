@@ -2,7 +2,7 @@ use std::io;
 use std::collections::HashMap;
 
 use crate::parser::{self, syntax_tree, tokens::Token};
-use super::{config::{self, Config}, executor::Value};
+use super::{config::{self, Config}, executor::Value, user_scripts};
 
 use ratatui::{
     prelude::*,
@@ -27,7 +27,7 @@ impl App {
     pub fn new() -> App {
         let mut app = App::new_blank();
         app.vars.insert("ans".to_string(), Value::Number(0.0));
-        app.run_script(config::load_index());
+        app.run_script(user_scripts::load_index());
         app
     }
 
@@ -69,7 +69,7 @@ impl App {
 
     fn handle_key_down(&mut self, key_event: KeyEvent) {
         match key_event.code {
-            KeyCode::Enter => self.execute_line(),
+            KeyCode::Enter => self.execute_current_line(),
             KeyCode::Backspace => {self.current_line.pop();},
             KeyCode::Left => self.decrement_counter(),
             KeyCode::Right => self.increment_counter(),
@@ -83,11 +83,11 @@ impl App {
     fn run_script(&mut self, script: String) {
         for line in script.lines() {
             line.clone_into(&mut self.current_line);
-            self.execute_line();
+            self.execute_current_line();
         }
     }
 
-    fn execute_line(&mut self) {
+    fn execute_current_line(&mut self) {
         let mut tokens = parser::tokens::tokenize(&self.current_line).unwrap();
         // don't unwrap forever pls
 

@@ -10,13 +10,26 @@ pub enum Value {
     Matrix(Vec<Vec<f64>>),
 }
 
-impl Value {
-    pub fn to_display_string(&self) -> String {
+impl fmt::Display for Value {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Value::Number(num) => num.to_string(),
-            Value::Matrix(_matrix) => {
-                todo!();
-            }
+            Value::Number(num) => write!(f, "{}", num.to_string()),
+            Value::Matrix(rows) => { // todo this is complete ass, will also need config options
+                write!(f, "using {:?} AND ", rows)?;
+                let mut output = String::from("[\n");
+                for row in rows {
+                    output.push('\t');
+                    for num in row {
+                        output += &num.to_string();
+                        output.push(',');
+                        output.push(' ');
+                    }
+                    output.pop();
+                    output.pop();
+                }
+                output.push(']');
+                write!(f, "{output}")
+            },
         }
     }
 }
@@ -28,6 +41,8 @@ pub enum RuntimeError {
     ParserFailure(String),
     InvalidOperation(String),
     AssigningToValue(String),
+    MatrixUnevenColumns(usize, usize),
+    NestedMatrix,
 }
 
 impl fmt::Display for RuntimeError {
@@ -72,7 +87,7 @@ impl App {
                             self.vars.insert(identifier, value.clone());
                             Ok(value)
                         },
-                        _ => Err(RuntimeError::AssigningToValue(self.execute(*rhs)?.to_display_string())),
+                        _ => Err(RuntimeError::AssigningToValue(self.execute(*rhs)?.to_string())),
                     }
                 } else if let Token::AltAssign = op {
                     match *rhs {
@@ -81,7 +96,7 @@ impl App {
                             self.vars.insert(identifier, value.clone());
                             Ok(value)
                         },
-                        _ => Err(RuntimeError::AssigningToValue(self.execute(*rhs)?.to_display_string())),
+                        _ => Err(RuntimeError::AssigningToValue(self.execute(*rhs)?.to_string())),
                     }
                 } else {
                     let lval = self.execute(*lhs)?;
@@ -154,6 +169,33 @@ impl App {
             Expression::FuncCall(_fname, _args) => {
                 todo!();
             },
+            Expression::Matrix(rows) => {
+                let map_row = |row: Vec<Expression>| {
+                    row.into_iter()
+                        .map(|exp| match self.execute(exp) {
+                            Ok(val) => match val {
+                                Value::Number(num) => Ok(num),
+                                Value::Matrix(_) => Err(RuntimeError::NestedMatrix),
+                            }
+                            Err(e) => Err(e),
+                        })
+                        .collect::<Result<Vec<f64>, RuntimeError>>()
+                };
+
+                let evaluated_rows = rows.into_iter()
+                    .map(map_row)
+                    .collect::<Result<Vec<Vec<f64>>, RuntimeError>>()?;
+
+                let num_cols = evaluated_rows.get(0).map(|row| row.len()).unwrap_or(0);
+
+                for row in &evaluated_rows {
+                    if row.len() != num_cols {
+                        return Err(RuntimeError::MatrixUnevenColumns(num_cols, row.len()));
+                    }
+                }
+
+                Ok(Value::Matrix(evaluated_rows))
+            }
             Expression::Group(inner) => self.execute(*inner),
             Expression::Empty => Ok(Value::Number(0.0)), // this might need to be handled different in some cases
         }

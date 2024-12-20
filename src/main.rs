@@ -3,7 +3,10 @@ use std::io;
 use full_calc::app::state::App;
 
 // fn main() {
-//     println!("Using {} text", full_calc::app::config::load_index());
+//     match full_calc::app::user_scripts::read_script("init.txt") {
+//         Ok(script) => {dbg!(script);},
+//         Err(e) => {dbg!(e);},
+//     };
 // }
 
 fn main() -> io::Result<()> {

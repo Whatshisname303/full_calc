@@ -11,6 +11,7 @@ pub enum SyntaxError {
     NoClosingParen(Vec<Expression>),
     CallNonIdentifier(Token),
     UnexpectedToken(Token),
+    ExpectedButGot(Token, Token),
 }
 
 impl fmt::Display for SyntaxError {
@@ -19,6 +20,7 @@ impl fmt::Display for SyntaxError {
             SyntaxError::NoClosingParen(expressions) => write!(f, "no closing parentheses around {:?}", expressions),
             SyntaxError::CallNonIdentifier(token) => write!(f, "attempting to call {:?} as a function", token),
             SyntaxError::UnexpectedToken(token) => write!(f, "unexpected {:?}", token),
+            SyntaxError::ExpectedButGot(t1, t2) => write!(f, "expected '{:?}' but got '{:?}'", t1, t2),
         }
     }
 }
@@ -31,6 +33,7 @@ pub enum Expression {
     Identifier(String),
     Number(String),
     Group(Box<Expression>),
+    Matrix(Vec<Vec<Expression>>),
     Binary(Box<Expression>, Token, Box<Expression>),
     Unary(Token, Box<Expression>),
     FuncCall(String, Vec<Expression>),
@@ -166,6 +169,35 @@ impl TreeBuilder {
         }
     }
 
+    fn parse_matrix(&mut self) -> Result<Expression, SyntaxError> {
+        let mut rows: Vec<Vec<Expression>> = Vec::new();
+        let mut current_row: Vec<Expression> = Vec::new();
+        let mut next_value = self.parse()?;
+
+        while let Token::Comma | Token::Semicolon = self.current() {
+            self.advance(1);
+            current_row.push(next_value);
+
+            match *self.peek_back(1) {
+                Token::Comma => next_value = self.parse()?,
+                Token::Semicolon => {
+                    rows.push(current_row);
+                    current_row = Vec::new();
+                    next_value = self.parse()?;
+                },
+                _ => panic!("messed up parsing"),
+            };
+        }
+
+        current_row.push(next_value);
+        rows.push(current_row);
+
+        match self.take() {
+            Token::CloseBracket => Ok(Expression::Matrix(rows)),
+            t => Err(SyntaxError::ExpectedButGot(Token::CloseBracket, t.clone())),
+        }
+    }
+
     fn parse_base(&mut self) -> Result<Expression, SyntaxError> {
         match self.take() {
             Token::Identifier(identifier) => Ok(Expression::Identifier(identifier.clone())),
@@ -178,6 +210,7 @@ impl TreeBuilder {
                     _ => Err(SyntaxError::NoClosingParen(vec![expression])),
                 }
             },
+            Token::OpenBracket => self.parse_matrix(),
             _ => Err(SyntaxError::UnexpectedToken(self.peek_back(1).clone())),
         }
     }
@@ -284,6 +317,17 @@ mod tests {
                 Token::Plus,
                 num("1"),
             )
+        )
+    }
+    #[test]
+    fn matrices() {
+        assert_eq!(
+            e("[1, 2, 3; 4, 5, 6; 7, 8, 9]"),
+            Expression::Matrix(vec![
+                vec![*num("1"), *num("2"), *num("3")],
+                vec![*num("4"), *num("5"), *num("6")],
+                vec![*num("7"), *num("8"), *num("9")],
+            ])
         )
     }
 }

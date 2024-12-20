@@ -2,7 +2,7 @@ use std::io;
 use std::collections::HashMap;
 
 use crate::parser::{self, syntax_tree, tokens::Token};
-use super::{config::{self, Config}, executor::Value, user_scripts};
+use super::{config::Config, executor::Value, user_scripts};
 
 use ratatui::{
     prelude::*,
@@ -27,7 +27,9 @@ impl App {
     pub fn new() -> App {
         let mut app = App::new_blank();
         app.vars.insert("ans".to_string(), Value::Number(0.0));
-        app.run_script(user_scripts::load_index());
+        if let Ok(script) = user_scripts::read_script("init") {
+            app.run_script(script);
+        }
         app
     }
 
@@ -106,11 +108,11 @@ impl App {
         let execution_response = match syntax_tree::generate_syntax_tree(tokens) {
             Ok(tree) => match self.execute(tree) {
                 Ok(value) => {
-                    let screen_output = value.to_display_string();
+                    let screen_output = value.to_string();
                     self.vars.insert("ans".to_string(), value);
                     screen_output
                 },
-                Err(e) => e.to_string(),
+                Err(e) => format!("{:?}", e),
             },
             Err(e) => e.to_string(),
         };

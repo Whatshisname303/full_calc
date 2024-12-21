@@ -139,11 +139,11 @@ impl TreeBuilder {
     }
 
     fn parse_function_call(&mut self) -> Result<Expression, SyntaxError> {
-        match (self.peek(0), self.peek(1)) {
+        match (self.current(), self.peek(1)) {
             (Token::Identifier(fname), Token::OpenParen) => {
                 let fname = fname.clone();
-                let fargs = self.parse_function_args()?;
                 self.advance(2);
+                let fargs = self.parse_function_args()?;
                 Ok(Expression::FuncCall(fname, fargs))
             },
             _ => self.parse_base(),

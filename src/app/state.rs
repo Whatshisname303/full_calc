@@ -12,7 +12,7 @@ use ratatui::{
 
 //todo: figure out where this struct should go
 #[derive(Debug)]
-struct UserFunction {
+pub struct UserFunction {
     name: String,
     params: Vec<String>,
     body: Expression,
@@ -24,7 +24,6 @@ pub struct Context {
     pub current_line: String,
     pub vars: HashMap<String, Value>,
     pub user_functions: HashMap<String, UserFunction>,
-    pub config: Config,
 }
 
 impl Default for Context {
@@ -34,7 +33,6 @@ impl Default for Context {
             current_line: String::new(),
             vars: HashMap::new(),
             user_functions: HashMap::new(),
-            config: Config::default(),
         };
         ctx.vars.insert("ans".to_string(), Value::Number(0.0));
         ctx
@@ -44,6 +42,7 @@ impl Default for Context {
 #[derive(Debug)]
 pub struct App {
     pub context: Context,
+    pub config: Config,
     pub exit: bool,
 }
 
@@ -88,6 +87,7 @@ impl App {
     pub fn new_raw() -> App {
         App {
             context: Context::default(),
+            config: Config::default(),
             exit: false,
         }
     }

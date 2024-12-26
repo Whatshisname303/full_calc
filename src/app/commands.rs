@@ -1,5 +1,5 @@
 use crate::parser::tokens::Token;
-use super::state::{App, Context};
+use super::{config::Panel, state::{App, Context}};
 
 // returns is_handled, errors are handled without warning caller
 pub fn handle_commands(app: &mut App, tokens: &Vec<Token>) -> bool {
@@ -19,7 +19,7 @@ pub fn handle_commands(app: &mut App, tokens: &Vec<Token>) -> bool {
             "def" => declare_function(app, tokens),
             "config" => update_config(app, tokens),
             "show" => show_page(app, tokens),
-            "view" => toggle_panel(app, tokens),
+            "panel" => toggle_panel(app, tokens),
             _ => is_handled = false,
         },
         _ => is_handled = false,
@@ -66,5 +66,46 @@ fn show_page(app: &mut App, tokens: &Vec<Token>) {
 }
 
 fn toggle_panel(app: &mut App, tokens: &Vec<Token>) {
-    todo!();
+    let mut print_err_msg = || {
+        app.context.history.push("usage: panel <vars/autocomplete/preview> <optional: on/off>".to_string());
+    };
+
+    let mut toggle_panel = |panel: Panel| {
+        match tokens.get(2) {
+            Some(Token::Identifier(ident)) => match ident.as_str() {
+                "on" => {
+                    if !app.config.panels.contains(&panel) {
+                        app.config.panels.push(panel);
+                    }
+                },
+                "off" => {
+                    if let Some(index) = app.config.panels.iter().position(|p| p == &panel) {
+                        app.config.panels.remove(index);
+                    }
+                },
+                _ => print_err_msg(),
+            },
+            None => {
+                let index = app.config.panels.iter().position(|p| p == &panel);
+                match index {
+                    Some(index) => {app.config.panels.remove(index);},
+                    None => {app.config.panels.push(panel);},
+                };
+            },
+            _ => print_err_msg(),
+        };
+    };
+
+    match tokens.get(1) {
+        Some(Token::Identifier(ident)) => match ident.as_str() {
+            "vars" => toggle_panel(Panel::Variables),
+            "autocomplete" => toggle_panel(Panel::Autocomplete),
+            "preview" => toggle_panel(Panel::ExpPreview),
+            _ => print_err_msg(),
+        },
+        _ => print_err_msg(),
+    };
+
+    // let st: String = app.config.panels.iter().map(|p| format!(" {:?} ", p)).collect();
+    // app.context.history.push(st);
 }

@@ -2,21 +2,21 @@ use ratatui::style::Color;
 
 #[derive(Debug)]
 pub struct Theme {
-    number: Color,
-    identifier: Color,
-    unknown_identifier: Color,
-    function: Color,
-    command: Color,
-    operator: Color,
-    line_background: Color,
-    result_background: Color,
-    panel_background: Color,
-    divider: Color,
-    text: Color,
-    cursor: Color,
+    pub number: Color,
+    pub identifier: Color,
+    pub unknown_identifier: Color,
+    pub function: Color,
+    pub command: Color,
+    pub operator: Color,
+    pub line_background: Color,
+    pub result_background: Color,
+    pub panel_background: Color,
+    pub divider: Color,
+    pub text: Color,
+    pub cursor: Color,
 
-    v_show_dividers: bool,
-    v_cursor: char,
+    pub v_show_dividers: bool,
+    pub v_cursor: char,
 }
 
 impl Default for Theme {
@@ -40,7 +40,7 @@ impl Default for Theme {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Panel {
     Variables,
     Autocomplete,

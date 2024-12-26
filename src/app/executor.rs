@@ -61,7 +61,7 @@ impl App {
                 Ok(num) => Ok(Value::Number(num)),
                 Err(_) => Err(RuntimeError::BadNumber(st)),
             }
-            Expression::Identifier(identifier) => match self.vars.get(&identifier) {
+            Expression::Identifier(identifier) => match self.context.vars.get(&identifier) {
                 Some(value) => Ok(value.clone()),
                 None => Err(RuntimeError::UnknownIdentifier(identifier.clone()))
             },
@@ -84,16 +84,16 @@ impl App {
                     match *lhs {
                         Expression::Identifier(identifier) => {
                             let value = self.execute(*rhs)?;
-                            self.vars.insert(identifier, value.clone());
+                            self.context.vars.insert(identifier, value.clone());
                             Ok(value)
                         },
-                        _ => Err(RuntimeError::AssigningToValue(self.execute(*rhs)?.to_string())),
+                        _ => Err(RuntimeError::AssigningToValue(self.execute(*lhs)?.to_string())),
                     }
                 } else if let Token::AltAssign = op {
                     match *rhs {
                         Expression::Identifier(identifier) => {
                             let value = self.execute(*lhs)?;
-                            self.vars.insert(identifier, value.clone());
+                            self.context.vars.insert(identifier, value.clone());
                             Ok(value)
                         },
                         _ => Err(RuntimeError::AssigningToValue(self.execute(*rhs)?.to_string())),

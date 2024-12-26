@@ -10,21 +10,21 @@ enum TokenType {
     Operator,
 }
 
-static OPERATORS: &[(&str, Token, u8)] = &[
-    ("(", Token::OpenParen, 1),
-    (")", Token::CloseParen, 1),
-    ("[", Token::OpenBracket, 1),
-    ("]", Token::CloseBracket, 1),
-    ("^", Token::Pow, 2),
-    ("*", Token::Mult, 2),
-    ("/", Token::Div, 2),
-    ("+", Token::Plus, 3),
-    ("-", Token::Minus, 3),
-    ("=", Token::Assign, 4),
-    ("=>", Token::AltAssign, 4),
-    (",", Token::Comma, 9),
-    (":", Token::Colon, 9),
-    (";", Token::Semicolon, 9),
+static OPERATORS: &[(&str, Token)] = &[
+    ("(", Token::OpenParen),
+    (")", Token::CloseParen),
+    ("[", Token::OpenBracket),
+    ("]", Token::CloseBracket),
+    ("^", Token::Pow),
+    ("*", Token::Mult),
+    ("/", Token::Div),
+    ("+", Token::Plus),
+    ("-", Token::Minus),
+    ("=", Token::Assign),
+    ("=>", Token::AltAssign),
+    (",", Token::Comma),
+    (":", Token::Colon),
+    (";", Token::Semicolon),
 ];
 
 #[derive(Clone, PartialEq, Debug)]
@@ -58,6 +58,14 @@ impl Token {
             _ => false,
         }
     }
+
+    pub fn is_from_str(&self, st: &str) -> bool {
+        match *self {
+            Token::Identifier(ref ident) => ident == st,
+            Token::Number(_) => false,
+            ref token => OPERATORS.iter().any(|(op_str, op_token)| *op_str == st && op_token == token),
+        }
+    }
 }
 
 // might want to add type as a struct field so not constantly recomputing
@@ -72,7 +80,7 @@ impl TokenState {
     fn continues_op(&self, ch: char) -> bool {
         let mut joined = self.current_buffer.clone();
         joined.push(ch);
-        OPERATORS.iter().any(|(op, _, _)| op.starts_with(&joined))
+        OPERATORS.iter().any(|(op, _)| op.starts_with(&joined))
     }
 
     fn get_type(&self) -> TokenType {
@@ -96,7 +104,7 @@ impl TokenState {
                 self.current_buffer.clear();
             },
             TokenType::Operator => {
-                let op_type = OPERATORS.iter().find_map(|(st, enum_type, _)| {
+                let op_type = OPERATORS.iter().find_map(|(st, enum_type)| {
                     match *st == self.current_buffer {
                         true => Some(enum_type),
                         false => None,

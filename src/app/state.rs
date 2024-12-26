@@ -1,8 +1,8 @@
 use std::io;
 use std::collections::HashMap;
 
-use crate::parser::{self, syntax_tree, tokens::Token};
-use super::{config::Config, executor::Value, user_scripts};
+use crate::parser::{self, syntax_tree::{self, Expression}, tokens::Token};
+use super::{commands, config::Config, executor::Value, user_scripts::{self, ScriptError}};
 
 use ratatui::{
     prelude::*,
@@ -10,40 +10,44 @@ use ratatui::{
     DefaultTerminal,
 };
 
+//todo: figure out where this struct should go
+#[derive(Debug)]
+struct UserFunction {
+    name: String,
+    params: Vec<String>,
+    body: Expression,
+}
 
 #[derive(Debug)]
-pub struct App {
-    pub counter: u8,
+pub struct Context {
     pub history: Vec<String>,
     pub current_line: String,
     pub vars: HashMap<String, Value>,
-    // pub functions: HashMap<String, idk>,
+    pub user_functions: HashMap<String, UserFunction>,
     pub config: Config,
-    pub exit: bool,
 }
 
-
-impl App {
-    pub fn new() -> App {
-        let mut app = App::new_blank();
-        app.vars.insert("ans".to_string(), Value::Number(0.0));
-        if let Ok(script) = user_scripts::read_script("init") {
-            app.run_script(script);
-        }
-        app
-    }
-
-    pub fn new_blank() -> App {
-        App {
-            counter: 0,
+impl Default for Context {
+    fn default() -> Self {
+        let mut ctx = Context {
             history: Vec::new(),
             current_line: String::new(),
             vars: HashMap::new(),
+            user_functions: HashMap::new(),
             config: Config::default(),
-            exit: false,
-        }
+        };
+        ctx.vars.insert("ans".to_string(), Value::Number(0.0));
+        ctx
     }
+}
 
+#[derive(Debug)]
+pub struct App {
+    pub context: Context,
+    pub exit: bool,
+}
+
+impl App {
     /// runs the application's main loop until the user quits
     pub fn run(&mut self, terminal: &mut DefaultTerminal) -> io::Result<()> {
         while !self.exit {
@@ -68,35 +72,54 @@ impl App {
         };
         Ok(())
     }
+}
+
+impl App {
+    pub fn new() -> App {
+        let mut app = App::new_raw();
+        // probably change this in the future to print where config is loaded
+        // also might add a tip for if no config dir exists
+        if let Err(ScriptError::ScriptNotFound(_)) = app.run_script("init") {
+            app.context.history.push("create init.txt inside your config dir to load a default script".to_string());
+        }
+        app
+    }
+
+    pub fn new_raw() -> App {
+        App {
+            context: Context::default(),
+            exit: false,
+        }
+    }
 
     fn handle_key_down(&mut self, key_event: KeyEvent) {
         match key_event.code {
             KeyCode::Enter => self.execute_current_line(),
-            KeyCode::Backspace => {self.current_line.pop();},
-            KeyCode::Left => self.decrement_counter(),
-            KeyCode::Right => self.increment_counter(),
+            KeyCode::Backspace => {self.context.current_line.pop();},
             KeyCode::Char(char) => {
-                self.current_line.push(char);
+                self.context.current_line.push(char);
             },
             _ => {},
-        }
+        };
     }
 
-    fn run_script(&mut self, script: String) {
+    pub fn run_script(&mut self, script_name: &str) -> Result<(), ScriptError> {
+        let script = user_scripts::read_script(script_name)?;
         for line in script.lines() {
-            line.clone_into(&mut self.current_line);
+            line.clone_into(&mut self.context.current_line);
             self.execute_current_line();
         }
+        Ok(())
     }
 
     fn execute_current_line(&mut self) {
-        let mut tokens = parser::tokens::tokenize(&self.current_line).unwrap();
+        let mut tokens = parser::tokens::tokenize(&self.context.current_line).unwrap();
         // don't unwrap forever pls
 
-        self.history.push(self.current_line.clone());
-        self.current_line.clear();
+        self.context.history.push(self.context.current_line.clone());
+        self.context.current_line.clear();
 
-        let processed = execute_commands(self, &tokens);
+        let processed = commands::handle_commands(self, &tokens);
         if processed {
             return;
         }
@@ -109,7 +132,7 @@ impl App {
             Ok(tree) => match self.execute(tree) {
                 Ok(value) => {
                     let screen_output = value.to_string();
-                    self.vars.insert("ans".to_string(), value);
+                    self.context.vars.insert("ans".to_string(), value);
                     screen_output
                 },
                 Err(e) => format!("{:?}", e),
@@ -117,43 +140,6 @@ impl App {
             Err(e) => e.to_string(),
         };
 
-        self.history.push(execution_response);
+        self.context.history.push(execution_response);
     }
-
-    fn exit(&mut self) {
-        self.exit = true;
-    }
-
-    fn increment_counter(&mut self) {
-        self.counter += 1;
-        self.current_line.push('a');
-    }
-
-    fn decrement_counter(&mut self) {
-        self.counter -= 1;
-    }
-}
-
-// need to figure out what to do with processed commands
-// should remaining tokens be executed normally?
-// should there be a response for whether a command was processed?
-fn execute_commands(app: &mut App, tokens: &Vec<Token>) -> bool {
-    if tokens.is_empty() {
-        return false;
-    }
-
-    let mut is_processed = true;
-
-    match tokens[0] {
-        Token::Identifier(ref word) => match word.as_str() {
-            "clear" => app.history.clear(),
-            "quit" | "exit" => app.exit(),
-            "def" => todo!(),
-            "set" => todo!(), // probably a good keyword for config
-            _ => is_processed = false,
-        },
-        _ => is_processed = false,
-    }
-
-    is_processed
 }

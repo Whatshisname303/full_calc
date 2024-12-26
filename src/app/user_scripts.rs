@@ -1,8 +1,14 @@
-use std::error::Error;
+use std::fmt;
 use std::fs;
 use std::path::Path;
 
-pub fn read_script(name: &str) -> Result<String, Box<dyn Error>> {
+#[derive(Debug)]
+pub enum ScriptError {
+    NoConfigPath,
+    ScriptNotFound(String),
+}
+
+pub fn read_script(name: &str) -> Result<String, ScriptError> {
     let config_path = get_config_path()?;
 
     let mut script_path = config_path.join(name);
@@ -17,10 +23,10 @@ pub fn read_script(name: &str) -> Result<String, Box<dyn Error>> {
         return Ok(script_contents);
     }
 
-    Err("script not found".into())
+    Err(ScriptError::ScriptNotFound(name.to_string()))
 }
 
-fn get_config_path() -> Result<&'static Path, Box<dyn Error>> {
+fn get_config_path() -> Result<&'static Path, ScriptError> {
     let bundled = Path::new("config");
 
     if bundled.exists() {
@@ -35,5 +41,16 @@ fn get_config_path() -> Result<&'static Path, Box<dyn Error>> {
         return Ok(linux_config)
     }
 
-    Err("no config path exists".into())
+    Err(ScriptError::NoConfigPath)
 }
+
+impl fmt::Display for ScriptError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ScriptError::NoConfigPath => write!(f, "no config path found"),
+            ScriptError::ScriptNotFound(name) => write!(f, "script '{}' not found", name),
+        }
+    }
+}
+
+impl std::error::Error for ScriptError {}

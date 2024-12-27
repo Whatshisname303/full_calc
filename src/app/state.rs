@@ -21,8 +21,9 @@ pub struct UserFunction {
 #[derive(Debug)]
 pub struct Context {
     pub history: Vec<String>,
+    pub history_scroll: u16,
     pub current_line: String,
-    pub vars: HashMap<String, Value>,
+    pub vars: Vec<(String, Value)>,
     pub user_functions: HashMap<String, UserFunction>,
 }
 
@@ -30,11 +31,12 @@ impl Default for Context {
     fn default() -> Self {
         let mut ctx = Context {
             history: Vec::new(),
+            history_scroll: 0,
             current_line: String::new(),
-            vars: HashMap::new(),
+            vars: Vec::new(),
             user_functions: HashMap::new(),
         };
-        ctx.vars.insert("ans".to_string(), Value::Number(0.0));
+        ctx.vars.push(("ans".to_string(), Value::Number(0.0)));
         ctx
     }
 }
@@ -96,6 +98,12 @@ impl App {
         match key_event.code {
             KeyCode::Enter => self.execute_current_line(),
             KeyCode::Backspace => {self.context.current_line.pop();},
+            KeyCode::Down => {self.context.history_scroll += 1;},
+            KeyCode::Up => {
+                if self.context.history_scroll > 0 {
+                    self.context.history_scroll -= 1;
+                }
+            },
             KeyCode::Char(char) => {
                 self.context.current_line.push(char);
             },
@@ -132,7 +140,7 @@ impl App {
             Ok(tree) => match self.execute(tree) {
                 Ok(value) => {
                     let screen_output = value.to_string();
-                    self.context.vars.insert("ans".to_string(), value);
+                    self.set_var("ans".to_string(), value);
                     screen_output
                 },
                 Err(e) => format!("{:?}", e),

@@ -55,14 +55,21 @@ impl Error for RuntimeError {}
 
 // might pull out operator implementation and implement on Value enum if convenient in the future
 impl App {
+    pub fn set_var(&mut self, identifier: String, value: Value) {
+        let existing_index = self.context.vars.iter().position(|(name, _)| name == &identifier);
+        match existing_index {
+            Some(index) => self.context.vars[index] = (identifier, value),
+            None => self.context.vars.push((identifier, value)),
+        };
+    }
     pub fn execute(&mut self, expression: Expression) -> Result<Value, RuntimeError> {
         match expression {
             Expression::Number(st) => match st.parse::<f64>() {
                 Ok(num) => Ok(Value::Number(num)),
                 Err(_) => Err(RuntimeError::BadNumber(st)),
             }
-            Expression::Identifier(identifier) => match self.context.vars.get(&identifier) {
-                Some(value) => Ok(value.clone()),
+            Expression::Identifier(identifier) => match self.context.vars.iter().find(|(name, _)| name == &identifier) {
+                Some((_, value)) => Ok(value.clone()),
                 None => Err(RuntimeError::UnknownIdentifier(identifier.clone()))
             },
             Expression::Unary(op, input) => match op {
@@ -84,7 +91,7 @@ impl App {
                     match *lhs {
                         Expression::Identifier(identifier) => {
                             let value = self.execute(*rhs)?;
-                            self.context.vars.insert(identifier, value.clone());
+                            self.set_var(identifier, value.clone());
                             Ok(value)
                         },
                         _ => Err(RuntimeError::AssigningToValue(self.execute(*lhs)?.to_string())),
@@ -93,7 +100,7 @@ impl App {
                     match *rhs {
                         Expression::Identifier(identifier) => {
                             let value = self.execute(*lhs)?;
-                            self.context.vars.insert(identifier, value.clone());
+                            self.set_var(identifier, value.clone());
                             Ok(value)
                         },
                         _ => Err(RuntimeError::AssigningToValue(self.execute(*rhs)?.to_string())),

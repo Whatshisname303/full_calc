@@ -2,7 +2,7 @@ use std::iter;
 
 use ratatui::{
     prelude::*,
-    style::Stylize, widgets::Block,
+    style::Stylize, widgets::{Block, Paragraph},
 };
 use symbols::border;
 
@@ -24,7 +24,7 @@ impl App {
     }
 
     fn render_text_area(&self, area: Rect, buf: &mut Buffer) {
-        // TODO use upper index later to get color
+        // TODO need to incldue color in history
         let mut lines = self.context.history.iter()
             .flat_map(|entry| entry.lines().map(|line| Line::from(line)))
             .collect::<Vec<_>>();
@@ -35,7 +35,7 @@ impl App {
         ]).bg(Color::Black);
 
         lines.push(current_line);
-        Text::from(lines).render(area, buf);
+        Paragraph::new(lines).scroll((self.context.history_scroll, 0)).render(area, buf);
     }
 
     fn render_panels(&self, area: Rect, buf: &mut Buffer) {
@@ -56,19 +56,23 @@ impl App {
         }
     }
 
-    fn get_vars_panel(&self) -> Block<'_> {
-        // TODO
-        Block::bordered().title(Line::from("Vars".bold())).border_set(border::THICK)
+    fn get_vars_panel(&self) -> Paragraph<'_> {
+        let block = Block::bordered().title(Line::from("Vars".bold())).border_set(border::THICK);
+        let vars: Vec<_> = self.context.vars.iter().map(|(name, value)| Line::from(format!("{name} = {value}"))).rev().collect();
+        let text = Text::from(vars);
+        Paragraph::new(text).block(block)
     }
 
-    fn get_autocomplete_panel(&self) -> Block<'_> {
+    fn get_autocomplete_panel(&self) -> Paragraph<'_> {
         // TODO
-        Block::bordered().title(Line::from("Autocomplete".bold())).border_set(border::THICK)
+        let block = Block::bordered().title(Line::from("Autocomplete".bold())).border_set(border::THICK);
+        Paragraph::new(Text::from("Hi")).block(block)
     }
 
-    fn get_preview_panel(&self) -> Block<'_> {
+    fn get_preview_panel(&self) -> Paragraph<'_> {
         // TODO
-        Block::bordered().title(Line::from("Preview".bold())).border_set(border::THICK)
+        let block = Block::bordered().title(Line::from("Preview".bold())).border_set(border::THICK);
+        Paragraph::new(Text::from("Hello")).block(block)
     }
 }
 

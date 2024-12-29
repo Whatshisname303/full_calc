@@ -2,9 +2,11 @@ use std::iter;
 
 use ratatui::{
     prelude::*,
-    style::Stylize, widgets::{Block, Paragraph},
+    widgets::{Block, Paragraph},
 };
 use symbols::border;
+
+use crate::parser::highlighting::{get_highlight_tokens, HighlightToken, HighlightTokenType};
 
 use super::{config::Panel, state::App};
 
@@ -25,16 +27,33 @@ impl App {
 
     fn render_text_area(&self, area: Rect, buf: &mut Buffer) {
         // TODO need to incldue color in history
-        let mut lines = self.context.history.iter()
-            .flat_map(|entry| entry.lines().map(|line| Line::from(line)))
+        // let mut lines = self.context.history.iter()
+        //     .flat_map(|entry| entry.lines().map(|line| Line::from(line).bg(self.config.theme.result_line_bg)))
+        //     .collect::<Vec<_>>();
+
+        let map_token_colors = |token: &HighlightToken| match token.kind {
+            HighlightTokenType::Identifier => token.text.clone().green(),
+            HighlightTokenType::Number => token.text.clone().blue(),
+            HighlightTokenType::Operator => token.text.clone().yellow(),
+            HighlightTokenType::Command => token.text.clone().red(),
+            HighlightTokenType::Space => token.text.clone().black(),
+        };
+
+        let mut lines: Vec<_> = self.context.history.iter().map(|history_entry| {
+            let spans = history_entry.tokens.iter().map(map_token_colors).collect::<Vec<_>>();
+            match history_entry.is_output {
+                true => Line::from(spans).bg(Color::Gray),
+                false => Line::from(spans).bg(Color::DarkGray),
+            }
+        }).collect();
+
+        let current_line = get_highlight_tokens(&self.context.current_line)
+            .iter()
+            .map(map_token_colors)
             .collect::<Vec<_>>();
 
-        let current_line = Line::from(vec![
-            self.context.current_line.as_str().into(),
-            "|".into(),
-        ]).bg(Color::Black);
+        lines.push(Line::from(current_line).bg(Color::Black));
 
-        lines.push(current_line);
         Paragraph::new(lines).scroll((self.context.history_scroll, 0)).render(area, buf);
     }
 

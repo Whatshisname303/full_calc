@@ -66,9 +66,7 @@ fn show_page(app: &mut App, tokens: &Vec<Token>) {
 }
 
 fn toggle_panel(app: &mut App, tokens: &Vec<Token>) {
-    let mut print_err_msg = || {
-        app.context.history.push("usage: panel <vars/autocomplete/preview> <optional: on/off>".to_string());
-    };
+    let err_msg = "usage: panel <vars/autocomplete/preview> <optional: on/off>";
 
     let mut toggle_panel = |panel: Panel| {
         match tokens.get(2) {
@@ -83,7 +81,7 @@ fn toggle_panel(app: &mut App, tokens: &Vec<Token>) {
                         app.config.panels.remove(index);
                     }
                 },
-                _ => print_err_msg(),
+                _ => app.push_history_msg(err_msg),
             },
             None => {
                 let index = app.config.panels.iter().position(|p| p == &panel);
@@ -92,7 +90,7 @@ fn toggle_panel(app: &mut App, tokens: &Vec<Token>) {
                     None => {app.config.panels.push(panel);},
                 };
             },
-            _ => print_err_msg(),
+            _ => app.push_history_msg(err_msg),
         };
     };
 
@@ -101,11 +99,8 @@ fn toggle_panel(app: &mut App, tokens: &Vec<Token>) {
             "vars" => toggle_panel(Panel::Variables),
             "autocomplete" => toggle_panel(Panel::Autocomplete),
             "preview" => toggle_panel(Panel::ExpPreview),
-            _ => print_err_msg(),
+            _ => app.push_history_msg(err_msg),
         },
-        _ => print_err_msg(),
+        _ => app.push_history_msg(err_msg),
     };
-
-    // let st: String = app.config.panels.iter().map(|p| format!(" {:?} ", p)).collect();
-    // app.context.history.push(st);
 }

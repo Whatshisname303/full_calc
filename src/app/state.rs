@@ -1,7 +1,7 @@
 use std::io;
 use std::collections::HashMap;
 
-use crate::parser::{self, syntax_tree::{self, Expression}, tokens::Token};
+use crate::parser::{self, highlighting::{get_highlight_tokens, HighlightToken}, syntax_tree::{self, Expression}, tokens::Token};
 use super::{commands, config::Config, executor::Value, user_scripts::{self, ScriptError}};
 
 use ratatui::{
@@ -9,6 +9,12 @@ use ratatui::{
     crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind},
     DefaultTerminal,
 };
+
+#[derive(Debug)]
+pub struct HistoryEntry {
+    pub tokens: Vec<HighlightToken>,
+    pub is_output: bool,
+}
 
 //todo: figure out where this struct should go
 #[derive(Debug)]
@@ -20,7 +26,7 @@ pub struct UserFunction {
 
 #[derive(Debug)]
 pub struct Context {
-    pub history: Vec<String>,
+    pub history: Vec<HistoryEntry>,
     pub history_scroll: u16,
     pub current_line: String,
     pub vars: Vec<(String, Value)>,
@@ -81,7 +87,7 @@ impl App {
         // probably change this in the future to print where config is loaded
         // also might add a tip for if no config dir exists
         if let Err(ScriptError::ScriptNotFound(_)) = app.run_script("init") {
-            app.context.history.push("create init.txt inside your config dir to load a default script".to_string());
+            app.push_history_msg("create init.txt inside your config dir to load a default script");
         }
         app
     }
@@ -121,11 +127,20 @@ impl App {
     }
 
     fn execute_current_line(&mut self) {
-        let mut tokens = parser::tokens::tokenize(&self.context.current_line).unwrap();
-        // don't unwrap forever pls
+        let tokens = parser::tokens::tokenize(&self.context.current_line);
 
-        self.context.history.push(self.context.current_line.clone());
+        let highlight_tokens = get_highlight_tokens(&self.context.current_line);
+        self.context.history.push(HistoryEntry {tokens: highlight_tokens, is_output: false});
+
         self.context.current_line.clear();
+
+        let mut tokens = match tokens {
+            Ok(tokens) => tokens,
+            Err(e) => {
+                self.push_history_msg(&e.to_string());
+                return;
+            }
+        };
 
         let processed = commands::handle_commands(self, &tokens);
         if processed {
@@ -139,15 +154,20 @@ impl App {
         let execution_response = match syntax_tree::generate_syntax_tree(tokens) {
             Ok(tree) => match self.execute(tree) {
                 Ok(value) => {
-                    let screen_output = value.to_string();
+                    let output =get_highlight_tokens(&value.to_string());
                     self.set_var("ans".to_string(), value);
-                    screen_output
+                    output
                 },
-                Err(e) => format!("{:?}", e),
+                Err(e) => get_highlight_tokens(&e.to_string()),
             },
-            Err(e) => e.to_string(),
+            Err(e) => get_highlight_tokens(&e.to_string()),
         };
 
-        self.context.history.push(execution_response);
+        self.context.history.push(HistoryEntry {tokens: execution_response, is_output: true});
+    }
+
+    pub fn push_history_msg(&mut self, msg: &str) {
+        let tokens = get_highlight_tokens(msg);
+        self.context.history.push(HistoryEntry {tokens, is_output: true});
     }
 }

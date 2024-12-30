@@ -1,37 +1,13 @@
 
 use std::{error::Error, fmt, iter};
 
-use crate::parser::{syntax_tree::Expression, tokens::Token};
+use crate::parser::{highlighting::{HighlightToken, HighlightTokenType}, syntax_tree::Expression, tokens::Token};
 use super::state::App;
 
 #[derive(Debug, Clone)]
 pub enum Value {
     Number(f64),
     Matrix(Vec<Vec<f64>>),
-}
-
-impl fmt::Display for Value {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Value::Number(num) => write!(f, "{}", num.to_string()),
-            Value::Matrix(rows) => { // todo this is complete ass, will also need config options
-                write!(f, "using {:?} AND ", rows)?;
-                let mut output = String::from("[\n");
-                for row in rows {
-                    output.push('\t');
-                    for num in row {
-                        output += &num.to_string();
-                        output.push(',');
-                        output.push(' ');
-                    }
-                    output.pop();
-                    output.pop();
-                }
-                output.push(']');
-                write!(f, "{output}")
-            },
-        }
-    }
 }
 
 #[derive(Debug)]
@@ -102,7 +78,7 @@ impl App {
                             self.set_var(identifier, value.clone());
                             Ok(value)
                         },
-                        _ => Err(RuntimeError::AssigningToValue(self.execute(*lhs)?.to_string())),
+                        _ => Err(RuntimeError::AssigningToValue(self.execute(*lhs)?.as_string())),
                     }
                 } else if let Token::AltAssign = op {
                     match *rhs {
@@ -111,7 +87,7 @@ impl App {
                             self.set_var(identifier, value.clone());
                             Ok(value)
                         },
-                        _ => Err(RuntimeError::AssigningToValue(self.execute(*rhs)?.to_string())),
+                        _ => Err(RuntimeError::AssigningToValue(self.execute(*rhs)?.as_string())),
                     }
                 } else {
                     let lval = self.execute(*lhs)?;
@@ -213,6 +189,96 @@ impl App {
             }
             Expression::Group(inner) => self.execute(*inner),
             Expression::Empty => Ok(Value::Number(0.0)), // this might need to be handled different in some cases
+        }
+    }
+}
+
+// displaying values
+impl Value {
+    pub fn as_string(&self) -> String {
+        let mut output = String::new();
+        match self {
+            Value::Number(num) => output.push_str(&num.to_string()),
+            Value::Matrix(rows) => {
+                match rows.len() {
+                    0 => output.push_str("[Empty]"),
+                    _ => {
+                        output.push('[');
+                        for row in rows {
+                            for col in row {
+                                output.push_str(&col.to_string());
+                                output.push(',');
+                                output.push(' ');
+                            }
+                            output.pop();
+                            output.pop();
+                            output.push(';');
+                            output.push(' ');
+                        }
+                        output.pop();
+                        output.pop();
+                        output.push(']');
+                    },
+                };
+            },
+        };
+        output
+    }
+
+    pub fn short_string(&self) -> String {
+        match self {
+            Value::Number(_) => self.as_string(),
+            Value::Matrix(rows) => format!("{}x{}", rows.len(), rows.get(0).map(|r| r.len()).unwrap_or(0)),
+        }
+    }
+
+    pub fn output_tokens(&self) -> Vec<HighlightToken> {
+        match self {
+            Value::Number(num) => vec![HighlightToken {text: num.to_string(), kind: HighlightTokenType::Number}],
+            Value::Matrix(rows) => {
+                let mut tokens = Vec::new();
+
+                if rows.len() == 0 {
+                    tokens.push(HighlightToken::op("[Empty]"));
+
+                } else if rows.len() == 1 || rows[0].len() == 1 {
+                    tokens.push(HighlightToken::op("["));
+
+                    let (elements, delimiter) = match rows.len() {
+                        1 => (&rows[0], ','),
+                        _ => (&rows.iter().map(|row| row[0]).collect(), ';'),
+                    };
+
+                    for number in elements {
+                        tokens.push(HighlightToken::number(number.to_string()));
+                        tokens.push(HighlightToken::op(&delimiter.to_string()));
+                        tokens.push(HighlightToken::space());
+                    }
+
+                    tokens.pop();
+                    tokens.pop();
+
+                    tokens.push(HighlightToken::op("]"));
+
+                } else {
+                    tokens.push(HighlightToken::op("["));
+
+                    for row in rows {
+                        tokens.push(HighlightToken::newline());
+                        tokens.push(HighlightToken::tab());
+                        for number in row {
+                            tokens.push(HighlightToken::number(number.to_string()));
+                            tokens.push(HighlightToken::op(", "));
+                        }
+                        tokens.pop();
+                    }
+
+                    tokens.push(HighlightToken::newline());
+                    tokens.push(HighlightToken::op("]"))
+                }
+
+                tokens
+            },
         }
     }
 }

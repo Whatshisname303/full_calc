@@ -26,27 +26,31 @@ impl App {
     }
 
     fn render_text_area(&self, area: Rect, buf: &mut Buffer) {
-        // TODO need to incldue color in history
-        // let mut lines = self.context.history.iter()
-        //     .flat_map(|entry| entry.lines().map(|line| Line::from(line).bg(self.config.theme.result_line_bg)))
-        //     .collect::<Vec<_>>();
-
         let theme = &self.config.theme;
-
         let map_token_colors = |token: &HighlightToken| match token.kind {
             HighlightTokenType::Identifier => token.text.clone().fg(theme.identifier),
             HighlightTokenType::Number => token.text.clone().fg(theme.number),
             HighlightTokenType::Operator => token.text.clone().fg(theme.operator),
             HighlightTokenType::Command => token.text.clone().fg(theme.command),
             HighlightTokenType::Space => token.text.clone().fg(Color::Black),
+            HighlightTokenType::Tab => " ".repeat(self.config.tab_width).fg(Color::Black),
+            HighlightTokenType::Newline => panic!("newlines are delimiters"),
         };
 
-        let mut lines: Vec<_> = self.context.history.iter().map(|history_entry| {
-            let spans = history_entry.tokens.iter().map(map_token_colors).collect::<Vec<_>>();
-            match history_entry.is_output {
-                true => Line::from(spans).bg(theme.result_line_bg),
-                false => Line::from(spans).bg(theme.input_line_bg),
-            }
+        let mut lines: Vec<Line<'_>> = self.context.history.iter().flat_map(|history_entry| {
+            let bg_color = match history_entry.is_output {
+                true => theme.result_line_bg,
+                false => theme.input_line_bg,
+            };
+            history_entry.tokens
+                .split(|token| token.kind == HighlightTokenType::Newline)
+                .map(|tokens|
+                    tokens.iter()
+                        .map(map_token_colors)
+                        .collect::<Vec<_>>()
+                )
+                .map(|tokens| Line::from(tokens).bg(bg_color))
+                .collect::<Vec<_>>()
         }).collect();
 
         let current_line = get_highlight_tokens(&self.context.current_line)
@@ -56,9 +60,7 @@ impl App {
 
         lines.push(Line::from(current_line).bg(theme.current_line_bg));
 
-        let block = Block::new().title("hi");
-
-        Paragraph::new(lines).block(block).scroll((self.context.history_scroll, 0)).render(area, buf);
+        Paragraph::new(lines).scroll((self.context.history_scroll, 0)).render(area, buf);
     }
 
     fn render_panels(&self, area: Rect, buf: &mut Buffer) {
@@ -81,9 +83,11 @@ impl App {
 
     fn get_vars_panel(&self) -> Paragraph<'_> {
         let block = Block::bordered().title(Line::from("Vars".bold())).border_set(border::THICK);
-        let vars: Vec<_> = self.context.vars.iter().map(|(name, value)| Line::from(format!("{name} = {value}"))).rev().collect();
-        let text = Text::from(vars);
-        Paragraph::new(text).block(block)
+        let vars: Vec<_> = self.context.vars.iter()
+            .map(|(name, value)| Line::from(format!("{} = {}", name, value.short_string())))
+            .rev()
+            .collect();
+        Paragraph::new(Text::from(vars)).block(block)
     }
 
     fn get_autocomplete_panel(&self) -> Paragraph<'_> {

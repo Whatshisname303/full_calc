@@ -5,12 +5,18 @@ pub enum HighlightTokenType {
     Operator,
     Command,
     Space,
+    Newline,
+    Tab,
 }
 
 #[derive(PartialEq, Debug)]
 pub struct HighlightToken {
     pub text: String,
     pub kind: HighlightTokenType,
+}
+
+pub fn get_highlight_tokens(line: &str) -> Vec<HighlightToken> {
+    Tokenizer::new(line).consume()
 }
 
 struct Tokenizer<'a> {
@@ -32,9 +38,27 @@ impl Tokenizer<'_> {
 
     fn consume(mut self) -> Vec<HighlightToken> {
         for ch in self.line.chars() {
+            if ch == '\r' || ch == '\n' {
+                self.flush_token();
+                self.tokens.push(HighlightToken {
+                    text: String::new(),
+                    kind: HighlightTokenType::Newline,
+                });
+                continue;
+            }
+
+            if ch == '\t' {
+                self.flush_token();
+                self.tokens.push(HighlightToken {
+                    text: String::new(),
+                    kind: HighlightTokenType::Tab,
+                });
+                continue;
+            }
+
             match self.current_kind.clone() {
                 HighlightTokenType::Space => {
-                    if ch.is_whitespace() {
+                    if ch == ' ' {
                         self.current_buf.push(ch);
                     } else {
                         self.start_token(ch);
@@ -54,7 +78,9 @@ impl Tokenizer<'_> {
                         self.current_buf.push(ch)
                     }
                 },
-                HighlightTokenType::Command => panic!("set type to command too early"),
+                HighlightTokenType::Command |
+                HighlightTokenType::Newline |
+                HighlightTokenType::Tab => panic!("token type set weird"),
             }
         }
 
@@ -112,8 +138,43 @@ impl Tokenizer<'_> {
     }
 }
 
-pub fn get_highlight_tokens(line: &str) -> Vec<HighlightToken> {
-    Tokenizer::new(line).consume()
+impl HighlightToken {
+    pub fn text(text: String) -> HighlightToken {
+        HighlightToken {
+            text,
+            kind: HighlightTokenType::Identifier,
+        }
+    }
+    pub fn number(text: String) -> HighlightToken {
+        HighlightToken {
+            text,
+            kind: HighlightTokenType::Number,
+        }
+    }
+    pub fn op(text: &str) -> HighlightToken {
+        HighlightToken {
+            text: text.to_string(),
+            kind: HighlightTokenType::Operator,
+        }
+    }
+    pub fn newline() -> HighlightToken {
+        HighlightToken {
+            text: String::new(),
+            kind: HighlightTokenType::Newline,
+        }
+    }
+    pub fn tab() -> HighlightToken {
+        HighlightToken {
+            text: String::new(),
+            kind: HighlightTokenType::Tab,
+        }
+    }
+    pub fn space() -> HighlightToken {
+        HighlightToken {
+            text: String::from(' '),
+            kind: HighlightTokenType::Space,
+        }
+    }
 }
 
 #[cfg(test)]

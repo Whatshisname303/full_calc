@@ -154,7 +154,7 @@ impl App {
         let execution_response = match syntax_tree::generate_syntax_tree(tokens) {
             Ok(tree) => match self.execute(tree) {
                 Ok(value) => {
-                    let output =get_highlight_tokens(&value.to_string());
+                    let output = value.output_tokens();
                     self.set_var("ans".to_string(), value);
                     output
                 },

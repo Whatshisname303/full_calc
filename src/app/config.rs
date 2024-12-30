@@ -55,7 +55,8 @@ pub struct Config {
     pub is_radians: bool,
 
     pub theme: Theme,
-    pub panels: Vec<Panel>
+    pub panels: Vec<Panel>,
+    pub tab_width: usize,
 }
 
 impl Default for Config {
@@ -67,6 +68,7 @@ impl Default for Config {
             is_radians: false,
             theme: Theme::default(),
             panels: vec![Panel::ExpPreview, Panel::Autocomplete, Panel::Variables],
+            tab_width: 4,
         }
     }
 }

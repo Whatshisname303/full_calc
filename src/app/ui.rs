@@ -31,19 +31,21 @@ impl App {
         //     .flat_map(|entry| entry.lines().map(|line| Line::from(line).bg(self.config.theme.result_line_bg)))
         //     .collect::<Vec<_>>();
 
+        let theme = &self.config.theme;
+
         let map_token_colors = |token: &HighlightToken| match token.kind {
-            HighlightTokenType::Identifier => token.text.clone().green(),
-            HighlightTokenType::Number => token.text.clone().blue(),
-            HighlightTokenType::Operator => token.text.clone().yellow(),
-            HighlightTokenType::Command => token.text.clone().red(),
-            HighlightTokenType::Space => token.text.clone().black(),
+            HighlightTokenType::Identifier => token.text.clone().fg(theme.identifier),
+            HighlightTokenType::Number => token.text.clone().fg(theme.number),
+            HighlightTokenType::Operator => token.text.clone().fg(theme.operator),
+            HighlightTokenType::Command => token.text.clone().fg(theme.command),
+            HighlightTokenType::Space => token.text.clone().fg(Color::Black),
         };
 
         let mut lines: Vec<_> = self.context.history.iter().map(|history_entry| {
             let spans = history_entry.tokens.iter().map(map_token_colors).collect::<Vec<_>>();
             match history_entry.is_output {
-                true => Line::from(spans).bg(Color::Gray),
-                false => Line::from(spans).bg(Color::DarkGray),
+                true => Line::from(spans).bg(theme.result_line_bg),
+                false => Line::from(spans).bg(theme.input_line_bg),
             }
         }).collect();
 
@@ -52,9 +54,11 @@ impl App {
             .map(map_token_colors)
             .collect::<Vec<_>>();
 
-        lines.push(Line::from(current_line).bg(Color::Black));
+        lines.push(Line::from(current_line).bg(theme.current_line_bg));
 
-        Paragraph::new(lines).scroll((self.context.history_scroll, 0)).render(area, buf);
+        let block = Block::new().title("hi");
+
+        Paragraph::new(lines).block(block).scroll((self.context.history_scroll, 0)).render(area, buf);
     }
 
     fn render_panels(&self, area: Rect, buf: &mut Buffer) {

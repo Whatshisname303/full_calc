@@ -47,7 +47,15 @@ pub enum RuntimeError {
 
 impl fmt::Display for RuntimeError {
     fn fmt(&self, _f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        todo!();
+        match self {
+            RuntimeError::BadNumber(st) => write!(_f, "bad number: {st}"),
+            RuntimeError::UnknownIdentifier(st) => write!(_f, "unknown identifier: {st}"),
+            RuntimeError::ParserFailure(st) => write!(_f, "parser failure: {st}"),
+            RuntimeError::InvalidOperation(st) => write!(_f, "invalid operation: {st}"),
+            RuntimeError::AssigningToValue(st) => write!(_f, "attempting to assign to value: {st}"),
+            RuntimeError::MatrixUnevenColumns(col1, col2) => write!(_f, "matrix columns must be equal length, found {} and {}", col1, col2),
+            RuntimeError::NestedMatrix => write!(_f, "nested matrices not supported"),
+        }
     }
 }
 

@@ -19,18 +19,20 @@ pub enum RuntimeError {
     AssigningToValue(String),
     MatrixUnevenColumns(usize, usize),
     NestedMatrix,
+    IncompatibleMatrices(usize, usize, usize, usize),
 }
 
 impl fmt::Display for RuntimeError {
-    fn fmt(&self, _f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            RuntimeError::BadNumber(st) => write!(_f, "bad number: {st}"),
-            RuntimeError::UnknownIdentifier(st) => write!(_f, "unknown identifier: {st}"),
-            RuntimeError::ParserFailure(st) => write!(_f, "parser failure: {st}"),
-            RuntimeError::InvalidOperation(st) => write!(_f, "invalid operation: {st}"),
-            RuntimeError::AssigningToValue(st) => write!(_f, "attempting to assign to value: {st}"),
-            RuntimeError::MatrixUnevenColumns(col1, col2) => write!(_f, "matrix columns must be equal length, found {} and {}", col1, col2),
-            RuntimeError::NestedMatrix => write!(_f, "nested matrices not supported"),
+            RuntimeError::BadNumber(st) => write!(f, "bad number: {st}"),
+            RuntimeError::UnknownIdentifier(st) => write!(f, "unknown identifier: {st}"),
+            RuntimeError::ParserFailure(st) => write!(f, "parser failure: {st}"),
+            RuntimeError::InvalidOperation(st) => write!(f, "invalid operation: {st}"),
+            RuntimeError::AssigningToValue(st) => write!(f, "attempting to assign to value: {st}"),
+            RuntimeError::MatrixUnevenColumns(col1, col2) => write!(f, "matrix columns must be equal length, found {} and {}", col1, col2),
+            RuntimeError::NestedMatrix => write!(f, "nested matrices not supported"),
+            RuntimeError::IncompatibleMatrices(m1, n1, m2, n2) => write!(f, "cannot multiply {m1}x{n1} with {m2}x{n2}"),
         }
     }
 }
@@ -148,7 +150,30 @@ impl App {
                                     }
                                     Ok(Value::Matrix(mat1))
                                 },
-                                Value::Matrix(_mat2) => todo!(),
+                                Value::Matrix(mat2) => {
+                                    let m1 =  mat1.len();
+                                    let m2 = mat2.len();
+                                    let n1 = mat1.get(0).map(|r| r.len()).unwrap_or(0);
+                                    let n2 = mat2.get(0).map(|r| r.len()).unwrap_or(0);
+
+                                    if m1 == 0 || m2 == 0 || n1 != m2 {
+                                        return Err(RuntimeError::IncompatibleMatrices(m1, n1, m2, n2))
+                                    }
+
+                                    let mut output_rows: Vec<Vec<f64>> = iter::repeat(Vec::new()).take(m1).collect();
+
+                                    for (row_i, row1) in mat1.iter().enumerate() {
+                                        for col_i in 0..n2 {
+                                            let output_num: f64 = mat2.iter()
+                                                .enumerate()
+                                                .map(|(num_i, row2)| row1[num_i] * row2[col_i])
+                                                .sum();
+                                            output_rows[row_i].push(output_num);
+                                        }
+                                    }
+
+                                    Ok(Value::Matrix(output_rows))
+                                }
                             },
                         },
                         Token::Div => todo!(),

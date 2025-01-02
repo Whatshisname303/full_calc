@@ -54,8 +54,8 @@ impl App {
                 Ok(num) => Ok(Value::Number(num)),
                 Err(_) => Err(RuntimeError::BadNumber(st)),
             }
-            Expression::Identifier(identifier) => match self.context.vars.iter().find(|(name, _)| name == &identifier) {
-                Some((_, value)) => Ok(value.clone()),
+            Expression::Identifier(identifier) => match self.context.get_var(&identifier) {
+                Some(value) => Ok(value.clone()),
                 None => Err(RuntimeError::UnknownIdentifier(identifier.clone()))
             },
             Expression::Unary(op, input) => match op {

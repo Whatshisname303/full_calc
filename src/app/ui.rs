@@ -28,7 +28,10 @@ impl App {
     fn render_text_area(&self, area: Rect, buf: &mut Buffer) {
         let theme = &self.config.theme;
         let map_token_colors = |token: &HighlightToken| match token.kind {
-            HighlightTokenType::Identifier => token.text.clone().fg(theme.identifier),
+            HighlightTokenType::Identifier => match self.context.get_var(&token.text) {
+                Some(_) => token.text.clone().fg(theme.identifier),
+                None => token.text.clone().fg(theme.unknown_identifier),
+            },
             HighlightTokenType::Number => token.text.clone().fg(theme.number),
             HighlightTokenType::Operator => token.text.clone().fg(theme.operator),
             HighlightTokenType::Command => token.text.clone().fg(theme.command),

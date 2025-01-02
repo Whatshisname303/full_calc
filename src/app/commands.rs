@@ -81,7 +81,7 @@ fn toggle_panel(app: &mut App, tokens: &Vec<Token>) {
                         app.config.panels.remove(index);
                     }
                 },
-                _ => app.push_history_msg(err_msg),
+                _ => app.context.push_history_msg(err_msg),
             },
             None => {
                 let index = app.config.panels.iter().position(|p| p == &panel);
@@ -90,7 +90,7 @@ fn toggle_panel(app: &mut App, tokens: &Vec<Token>) {
                     None => {app.config.panels.push(panel);},
                 };
             },
-            _ => app.push_history_msg(err_msg),
+            _ => app.context.push_history_msg(err_msg),
         };
     };
 
@@ -99,8 +99,8 @@ fn toggle_panel(app: &mut App, tokens: &Vec<Token>) {
             "vars" => toggle_panel(Panel::Variables),
             "autocomplete" => toggle_panel(Panel::Autocomplete),
             "preview" => toggle_panel(Panel::ExpPreview),
-            _ => app.push_history_msg(err_msg),
+            _ => app.context.push_history_msg(err_msg),
         },
-        _ => app.push_history_msg(err_msg),
+        _ => app.context.push_history_msg(err_msg),
     };
 }

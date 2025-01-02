@@ -24,7 +24,7 @@ impl Default for Theme {
         Theme {
             number: Color::Rgb(255, 130, 30),
             identifier: Color::Rgb(240, 240, 240),
-            unknown_identifier: Color::Rgb(200, 200, 200),
+            unknown_identifier: Color::Rgb(180, 180, 180),
             function: Color::LightMagenta,
             command: Color::Rgb(255, 40, 60),
             operator: Color::LightYellow,

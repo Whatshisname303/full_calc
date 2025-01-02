@@ -18,10 +18,15 @@ pub struct HistoryEntry {
 
 //todo: figure out where this struct should go
 #[derive(Debug)]
-pub struct UserFunction {
+pub struct Function {
     name: String,
     params: Vec<String>,
     body: Expression,
+}
+
+pub enum FunctionBody {
+    Builtin(Box<dyn Fn(Expression) -> Expression>),
+    User(Expression),
 }
 
 #[derive(Debug)]
@@ -30,7 +35,18 @@ pub struct Context {
     pub history_scroll: u16,
     pub current_line: String,
     pub vars: Vec<(String, Value)>,
-    pub user_functions: HashMap<String, UserFunction>,
+    pub user_functions: Vec<Function>,
+}
+
+impl Context {
+    pub fn get_var(&self, name: &str) -> Option<&Value> {
+        self.vars.iter().find(|var| var.0 == name).map(|(_, value)| value)
+    }
+
+    pub fn push_history_msg(&mut self, msg: &str) {
+        let tokens = get_highlight_tokens(msg);
+        self.history.push(HistoryEntry {tokens, is_output: true});
+    }
 }
 
 impl Default for Context {
@@ -40,7 +56,7 @@ impl Default for Context {
             history_scroll: 0,
             current_line: String::new(),
             vars: Vec::new(),
-            user_functions: HashMap::new(),
+            user_functions: Vec::new(),
         };
         ctx.vars.push(("ans".to_string(), Value::Number(0.0)));
         ctx
@@ -87,7 +103,7 @@ impl App {
         // probably change this in the future to print where config is loaded
         // also might add a tip for if no config dir exists
         if let Err(ScriptError::ScriptNotFound(_)) = app.run_script("init") {
-            app.push_history_msg("create init.txt inside your config dir to load a default script");
+            app.context.push_history_msg("create init.txt inside your config dir to load a default script");
         }
         app
     }
@@ -137,7 +153,7 @@ impl App {
         let mut tokens = match tokens {
             Ok(tokens) => tokens,
             Err(e) => {
-                self.push_history_msg(&e.to_string());
+                self.context.push_history_msg(&e.to_string());
                 return;
             }
         };
@@ -164,10 +180,5 @@ impl App {
         };
 
         self.context.history.push(HistoryEntry {tokens: execution_response, is_output: true});
-    }
-
-    pub fn push_history_msg(&mut self, msg: &str) {
-        let tokens = get_highlight_tokens(msg);
-        self.context.history.push(HistoryEntry {tokens, is_output: true});
     }
 }

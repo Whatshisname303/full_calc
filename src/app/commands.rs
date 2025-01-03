@@ -1,4 +1,5 @@
 use crate::parser::tokens::Token;
+use crate::parser::general_parsing;
 use super::{config::Panel, state::{App, Context}};
 
 // returns is_handled, errors are handled without warning caller
@@ -54,7 +55,10 @@ fn load_script(app: &mut App, tokens: &Vec<Token>) {
 }
 
 fn declare_function(app: &mut App, tokens: &Vec<Token>) {
-    todo!();
+    match general_parsing::parse_function_definition(tokens) {
+        Ok(function_definition) => app.context.set_function(function_definition),
+        Err(e) => app.context.push_history_msg(&e.to_string()),
+    }
 }
 
 fn update_config(app: &mut App, tokens: &Vec<Token>) {

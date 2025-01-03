@@ -1,5 +1,4 @@
 use std::io;
-use std::collections::HashMap;
 
 use crate::parser::{self, highlighting::{get_highlight_tokens, HighlightToken}, syntax_tree::{self, Expression}, tokens::Token};
 use super::{commands, config::Config, executor::Value, user_scripts::{self, ScriptError}};
@@ -16,31 +15,44 @@ pub struct HistoryEntry {
     pub is_output: bool,
 }
 
-//todo: figure out where this struct should go
-#[derive(Debug)]
-pub struct Function {
-    name: String,
-    params: Vec<String>,
-    body: Expression,
-}
-
 pub enum FunctionBody {
-    Builtin(Box<dyn Fn(Expression) -> Expression>),
     User(Expression),
+    Builtin(Box<dyn Fn(Expression) -> Expression>),
 }
 
-#[derive(Debug)]
+pub struct FunctionDef {
+    pub name: String,
+    pub params: Vec<String>,
+    pub body: FunctionBody,
+}
+
 pub struct Context {
     pub history: Vec<HistoryEntry>,
     pub history_scroll: u16,
     pub current_line: String,
     pub vars: Vec<(String, Value)>,
-    pub user_functions: Vec<Function>,
+    pub functions: Vec<FunctionDef>,
 }
 
 impl Context {
     pub fn get_var(&self, name: &str) -> Option<&Value> {
         self.vars.iter().find(|var| var.0 == name).map(|(_, value)| value)
+    }
+
+    pub fn set_var(&mut self, identifier: String, value: Value) {
+        let existing_index = self.vars.iter().position(|(name, _)| name == &identifier);
+        match existing_index {
+            Some(index) => self.vars[index] = (identifier, value),
+            None => self.vars.push((identifier, value)),
+        };
+    }
+
+    pub fn set_function(&mut self, definition: FunctionDef) {
+        let existing_index = self.functions.iter().position(|f| f.name == definition.name);
+        match existing_index {
+            Some(index) => self.functions[index] = definition,
+            None => self.functions.push(definition),
+        }
     }
 
     pub fn push_history_msg(&mut self, msg: &str) {
@@ -56,14 +68,13 @@ impl Default for Context {
             history_scroll: 0,
             current_line: String::new(),
             vars: Vec::new(),
-            user_functions: Vec::new(),
+            functions: Vec::new(),
         };
         ctx.vars.push(("ans".to_string(), Value::Number(0.0)));
         ctx
     }
 }
 
-#[derive(Debug)]
 pub struct App {
     pub context: Context,
     pub config: Config,
@@ -171,7 +182,7 @@ impl App {
             Ok(tree) => match self.execute(tree) {
                 Ok(value) => {
                     let output = value.output_tokens();
-                    self.set_var("ans".to_string(), value);
+                    self.context.set_var("ans".to_string(), value);
                     output
                 },
                 Err(e) => get_highlight_tokens(&e.to_string()),

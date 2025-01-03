@@ -41,13 +41,6 @@ impl Error for RuntimeError {}
 
 // might pull out operator implementation and implement on Value enum if convenient in the future
 impl App {
-    pub fn set_var(&mut self, identifier: String, value: Value) {
-        let existing_index = self.context.vars.iter().position(|(name, _)| name == &identifier);
-        match existing_index {
-            Some(index) => self.context.vars[index] = (identifier, value),
-            None => self.context.vars.push((identifier, value)),
-        };
-    }
     pub fn execute(&mut self, expression: Expression) -> Result<Value, RuntimeError> {
         match expression {
             Expression::Number(st) => match st.parse::<f64>() {
@@ -77,7 +70,7 @@ impl App {
                     match *lhs {
                         Expression::Identifier(identifier) => {
                             let value = self.execute(*rhs)?;
-                            self.set_var(identifier, value.clone());
+                            self.context.set_var(identifier, value.clone());
                             Ok(value)
                         },
                         _ => Err(RuntimeError::AssigningToValue(self.execute(*lhs)?.as_string())),
@@ -86,7 +79,7 @@ impl App {
                     match *rhs {
                         Expression::Identifier(identifier) => {
                             let value = self.execute(*lhs)?;
-                            self.set_var(identifier, value.clone());
+                            self.context.set_var(identifier, value.clone());
                             Ok(value)
                         },
                         _ => Err(RuntimeError::AssigningToValue(self.execute(*rhs)?.as_string())),

@@ -10,7 +10,7 @@ use crate::parser::highlighting::{get_highlight_tokens, HighlightToken, Highligh
 
 use super::{config::Panel, state::App};
 
-impl App {
+impl App<'_> {
     fn get_horizontal_layout(&self, area: Rect) -> (Rect, Rect) {
         let [text_area, panel_area] = match self.config.panels.len() {
             0 => Layout::horizontal([
@@ -106,7 +106,7 @@ impl App {
     }
 }
 
-impl Widget for &App {
+impl Widget for &App<'_> {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let (text_area, panel_area) = self.get_horizontal_layout(area);
 

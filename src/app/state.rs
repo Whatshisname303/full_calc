@@ -1,7 +1,7 @@
 use std::io;
 
 use crate::parser::{self, highlighting::{get_highlight_tokens, HighlightToken}, syntax_tree::{self, Expression}, tokens::Token};
-use super::{commands, config::Config, executor::Value, user_scripts::{self, ScriptError}};
+use super::{commands, config::Config, executor::{RuntimeError, Value}, user_scripts::{self, ScriptError}};
 
 use ratatui::{
     prelude::*,
@@ -17,7 +17,7 @@ pub struct HistoryEntry {
 
 pub enum FunctionBody {
     User(Expression),
-    Builtin(Box<dyn Fn(Expression) -> Expression>),
+    Builtin(Box<dyn Fn(Vec<Value>) -> Result<Value, RuntimeError>>),
 }
 
 pub struct FunctionDef {
@@ -26,17 +26,28 @@ pub struct FunctionDef {
     pub body: FunctionBody,
 }
 
-pub struct Context {
+pub struct Context<'a> {
     pub history: Vec<HistoryEntry>,
     pub history_scroll: u16,
     pub current_line: String,
     pub vars: Vec<(String, Value)>,
     pub functions: Vec<FunctionDef>,
+    pub parent_context: Option<&'a Context<'a>>, // for temporary function contexts
 }
 
-impl Context {
+impl Context<'_> {
+    pub fn from_context<'a>(context: &'a Context) -> Context<'a> {
+        let mut new_context = Context::default();
+        new_context.parent_context = Some(context);
+        new_context
+    }
+
     pub fn get_var(&self, name: &str) -> Option<&Value> {
         self.vars.iter().find(|var| var.0 == name).map(|(_, value)| value)
+    }
+
+    pub fn get_function(&self, name: &str) -> Option<&FunctionDef> {
+        self.functions.iter().find(|func| &func.name == name)
     }
 
     pub fn set_var(&mut self, identifier: String, value: Value) {
@@ -61,7 +72,7 @@ impl Context {
     }
 }
 
-impl Default for Context {
+impl Default for Context<'_> {
     fn default() -> Self {
         let mut ctx = Context {
             history: Vec::new(),
@@ -69,19 +80,20 @@ impl Default for Context {
             current_line: String::new(),
             vars: Vec::new(),
             functions: Vec::new(),
+            parent_context: None,
         };
         ctx.vars.push(("ans".to_string(), Value::Number(0.0)));
         ctx
     }
 }
 
-pub struct App {
-    pub context: Context,
+pub struct App<'a> {
+    pub context: Context<'a>,
     pub config: Config,
     pub exit: bool,
 }
 
-impl App {
+impl App<'_> {
     /// runs the application's main loop until the user quits
     pub fn run(&mut self, terminal: &mut DefaultTerminal) -> io::Result<()> {
         while !self.exit {
@@ -108,8 +120,8 @@ impl App {
     }
 }
 
-impl App {
-    pub fn new() -> App {
+impl App<'_> {
+    pub fn new() -> App<'static> {
         let mut app = App::new_raw();
         // probably change this in the future to print where config is loaded
         // also might add a tip for if no config dir exists
@@ -119,7 +131,7 @@ impl App {
         app
     }
 
-    pub fn new_raw() -> App {
+    pub fn new_raw() -> App<'static> {
         App {
             context: Context::default(),
             config: Config::default(),
@@ -179,7 +191,7 @@ impl App {
         }
 
         let execution_response = match syntax_tree::generate_syntax_tree(tokens) {
-            Ok(tree) => match self.execute(tree) {
+            Ok(tree) => match self.context.execute(tree) {
                 Ok(value) => {
                     let output = value.output_tokens();
                     self.context.set_var("ans".to_string(), value);

@@ -1,8 +1,7 @@
 
 use std::{error::Error, fmt, iter};
 
-use crate::parser::{highlighting::{HighlightToken, HighlightTokenType}, syntax_tree::Expression, tokens::Token};
-use super::state::App;
+use crate::{app::state::{Context, FunctionBody}, parser::{highlighting::{HighlightToken, HighlightTokenType}, syntax_tree::Expression, tokens::Token}};
 
 #[derive(Debug, Clone)]
 pub enum Value {
@@ -20,6 +19,7 @@ pub enum RuntimeError {
     MatrixUnevenColumns(usize, usize),
     NestedMatrix,
     IncompatibleMatrices(usize, usize, usize, usize),
+    InvalidFunctionArguments{fname: String, expected: usize, got: usize},
 }
 
 impl fmt::Display for RuntimeError {
@@ -33,6 +33,7 @@ impl fmt::Display for RuntimeError {
             RuntimeError::MatrixUnevenColumns(col1, col2) => write!(f, "matrix columns must be equal length, found {} and {}", col1, col2),
             RuntimeError::NestedMatrix => write!(f, "nested matrices not supported"),
             RuntimeError::IncompatibleMatrices(m1, n1, m2, n2) => write!(f, "cannot multiply {m1}x{n1} with {m2}x{n2}"),
+            RuntimeError::InvalidFunctionArguments { fname, expected, got } => write!(f, "{fname} expected {expected} arguments but got {got}"),
         }
     }
 }
@@ -40,14 +41,14 @@ impl fmt::Display for RuntimeError {
 impl Error for RuntimeError {}
 
 // might pull out operator implementation and implement on Value enum if convenient in the future
-impl App {
+impl Context<'_> {
     pub fn execute(&mut self, expression: Expression) -> Result<Value, RuntimeError> {
         match expression {
             Expression::Number(st) => match st.parse::<f64>() {
                 Ok(num) => Ok(Value::Number(num)),
                 Err(_) => Err(RuntimeError::BadNumber(st)),
             }
-            Expression::Identifier(identifier) => match self.context.get_var(&identifier) {
+            Expression::Identifier(identifier) => match self.get_var(&identifier) {
                 Some(value) => Ok(value.clone()),
                 None => Err(RuntimeError::UnknownIdentifier(identifier.clone()))
             },
@@ -70,7 +71,7 @@ impl App {
                     match *lhs {
                         Expression::Identifier(identifier) => {
                             let value = self.execute(*rhs)?;
-                            self.context.set_var(identifier, value.clone());
+                            self.set_var(identifier, value.clone());
                             Ok(value)
                         },
                         _ => Err(RuntimeError::AssigningToValue(self.execute(*lhs)?.as_string())),
@@ -79,7 +80,7 @@ impl App {
                     match *rhs {
                         Expression::Identifier(identifier) => {
                             let value = self.execute(*lhs)?;
-                            self.context.set_var(identifier, value.clone());
+                            self.set_var(identifier, value.clone());
                             Ok(value)
                         },
                         _ => Err(RuntimeError::AssigningToValue(self.execute(*rhs)?.as_string())),
@@ -175,8 +176,30 @@ impl App {
                     }
                 }
             },
-            Expression::FuncCall(_fname, _args) => {
-                todo!();
+            Expression::FuncCall(fname, args) => {
+                let arg_values = args.into_iter()
+                    .map(|arg| self.execute(arg))
+                    .collect::<Result<Vec<Value>, RuntimeError>>()?;
+
+                let mut function_context = Context::from_context(&self);
+                let function_def = self.get_function(&fname).ok_or(RuntimeError::UnknownIdentifier(fname.clone()))?;
+
+                match &function_def.body {
+                    FunctionBody::Builtin(closure) => closure(arg_values),
+                    FunctionBody::User(body) => {
+                        if function_def.params.len() != arg_values.len() {
+                            return Err(RuntimeError::InvalidFunctionArguments {
+                                fname,
+                                expected: function_def.params.len(),
+                                got: arg_values.len(),
+                            });
+                        }
+                        for (param, arg) in iter::zip(&function_def.params, arg_values) {
+                            function_context.set_var(param.clone(), arg);
+                        }
+                        function_context.execute(body.clone())
+                    },
+                }
             },
             Expression::Matrix(rows) => {
                 let map_row = |row: Vec<Expression>| {

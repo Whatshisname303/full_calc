@@ -27,7 +27,7 @@ impl fmt::Display for SyntaxError {
 
 impl std::error::Error for SyntaxError {}
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub enum Expression {
     Empty,
     Identifier(String),

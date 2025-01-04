@@ -43,11 +43,16 @@ impl Context<'_> {
     }
 
     pub fn get_var(&self, name: &str) -> Option<&Value> {
-        self.vars.iter().find(|var| var.0 == name).map(|(_, value)| value)
+        self.vars.iter()
+            .find(|var| var.0 == name)
+            .map(|(_, value)| value)
+            .or_else(|| self.parent_context.and_then(|ctx| ctx.get_var(name)))
     }
 
     pub fn get_function(&self, name: &str) -> Option<&FunctionDef> {
-        self.functions.iter().find(|func| &func.name == name)
+        self.functions.iter()
+            .find(|func| &func.name == name)
+            .or_else(|| self.parent_context.and_then(|ctx| ctx.get_function(name)))
     }
 
     pub fn set_var(&mut self, identifier: String, value: Value) {

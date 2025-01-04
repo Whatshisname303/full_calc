@@ -1,6 +1,6 @@
 use crate::parser::tokens::Token;
 use crate::parser::general_parsing;
-use super::{config::Panel, state::{App, Context}};
+use super::{config::Panel, state::{App, Context}, user_scripts::{read_script, ScriptError}};
 
 // returns is_handled, errors are handled without warning caller
 pub fn handle_commands(app: &mut App, tokens: &Vec<Token>) -> bool {
@@ -51,7 +51,28 @@ fn use_scope(app: &mut App, tokens: &Vec<Token>) {
 }
 
 fn load_script(app: &mut App, tokens: &Vec<Token>) {
-    todo!();
+    match tokens.get(1) {
+        Some(Token::Identifier(script_name)) => {
+            let file_path = script_name.replace(".", "/");
+            match app.run_script(&file_path) {
+                Ok(()) => (),
+                Err(ScriptError::NoConfigPath) => {
+                    app.context.push_history_text(
+                        "create a 'config' folder at (will put path here later) or next to the executable to use scripts"
+                    );
+                },
+                Err(ScriptError::ScriptNotFound(_)) => {
+                    match (tokens.get(2), tokens.get(3)) {
+                        (Some(Token::Div), Some(Token::Identifier(name2))) => {
+                            app.context.push_history_text(&format!("script paths use '.' instead of '/' ex: {script_name}.{name2}"));
+                        },
+                        _ => app.context.push_history_text("script not found"),
+                    }
+                }
+            }
+        },
+        _ => app.context.push_history_msg("usage: load <scriptname>"),
+    }
 }
 
 fn declare_function(app: &mut App, tokens: &Vec<Token>) {

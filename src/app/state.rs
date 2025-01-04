@@ -1,6 +1,6 @@
 use std::io;
 
-use crate::parser::{self, highlighting::{get_highlight_tokens, HighlightToken}, syntax_tree::{self, Expression}, tokens::Token};
+use crate::parser::{self, highlighting::{get_highlight_tokens, HighlightToken, HighlightTokenType}, syntax_tree::{self, Expression}, tokens::Token};
 use super::{commands, config::Config, executor::{RuntimeError, Value}, user_scripts::{self, ScriptError}};
 
 use ratatui::{
@@ -71,9 +71,17 @@ impl Context<'_> {
         }
     }
 
+    // history_msg will highlight input, history_text will output as pure text
     pub fn push_history_msg(&mut self, msg: &str) {
         let tokens = get_highlight_tokens(msg);
         self.history.push(HistoryEntry {tokens, is_output: true});
+    }
+
+    pub fn push_history_text(&mut self, msg: &str) {
+        self.history.push(HistoryEntry {
+            tokens: vec![HighlightToken {text: msg.to_string(), kind: HighlightTokenType::Identifier}],
+            is_output: true,
+        });
     }
 }
 

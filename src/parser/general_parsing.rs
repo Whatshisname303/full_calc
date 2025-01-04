@@ -71,7 +71,7 @@ impl std::error::Error for FunctionDefinitionError {}
 mod tests {
     use super::*;
     use crate::parser::tokens::tokenize;
-    use crate::app::state::{FunctionDef, FunctionBody};
+    use crate::app::state::FunctionDef;
 
     fn e(s: &str) -> Result<FunctionDef, FunctionDefinitionError> {
         parse_function_definition(&tokenize(s).unwrap())

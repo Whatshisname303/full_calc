@@ -233,7 +233,8 @@ mod tests {
             HighlightToken {text: "1".to_string(), kind: HighlightTokenType::Number},
             HighlightToken {text: "+".to_string(), kind: HighlightTokenType::Operator},
             HighlightToken {text: ".5".to_string(), kind: HighlightTokenType::Number},
-            HighlightToken {text: "\n ".to_string(), kind: HighlightTokenType::Space},
+            HighlightToken {text: "".to_string(), kind: HighlightTokenType::Newline},
+            HighlightToken {text: " ".to_string(), kind: HighlightTokenType::Space},
             HighlightToken {text: "-".to_string(), kind: HighlightTokenType::Operator},
             HighlightToken {text: "2.0".to_string(), kind: HighlightTokenType::Number},
         ]);

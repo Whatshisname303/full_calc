@@ -47,7 +47,23 @@ fn reload_app(app: &mut App, tokens: &Vec<Token>) {
 }
 
 fn use_scope(app: &mut App, tokens: &Vec<Token>) {
-    todo!();
+    match tokens.get(1) {
+        Some(Token::Identifier(scope_name)) => {
+            let scope_name = scope_name.to_string() + ".";
+
+            let new_vars: Vec<_> = app.context.vars.iter().filter_map(|(name, value)| {
+                match name.starts_with(&scope_name) {
+                    true => Some((name[scope_name.len()..].to_string(), value.clone())),
+                    false => None,
+                }
+            }).collect();
+
+            for (name, value) in new_vars {
+                app.context.set_var(name, value);
+            }
+        },
+        _ => app.context.push_history_text("usage: use <scope>"),
+    }
 }
 
 fn load_script(app: &mut App, tokens: &Vec<Token>) {

@@ -3,10 +3,13 @@ use std::{error::Error, fmt, iter};
 
 use crate::{app::state::{Context, FunctionBody}, parser::{highlighting::{HighlightToken, HighlightTokenType}, syntax_tree::Expression, tokens::Token}};
 
+type Num = f64;
+type MatrixBody = Vec<Vec<Num>>;
+
 #[derive(Debug, Clone)]
 pub enum Value {
-    Number(f64),
-    Matrix(Vec<Vec<f64>>),
+    Number(Num),
+    Matrix(MatrixBody),
 }
 
 #[derive(Debug)]
@@ -46,7 +49,7 @@ impl Error for RuntimeError {}
 impl Context<'_> {
     pub fn execute(&mut self, expression: Expression) -> Result<Value, RuntimeError> {
         match expression {
-            Expression::Number(st) => match st.parse::<f64>() {
+            Expression::Number(st) => match st.parse::<Num>() {
                 Ok(num) => Ok(Value::Number(num)),
                 Err(_) => Err(RuntimeError::BadNumber(st)),
             }
@@ -69,112 +72,27 @@ impl Context<'_> {
                 _ => Err(RuntimeError::ParserFailure(format!("{:?} of {:?}", op, input)))
             },
             Expression::Binary(lhs, op, rhs) => {
-                if let Token::Assign = op {
-                    match *lhs {
+                match op {
+                    Token::Assign => match *lhs {
                         Expression::Identifier(identifier) => {
                             let value = self.execute(*rhs)?;
                             self.set_var(identifier, value.clone());
                             Ok(value)
                         },
                         _ => Err(RuntimeError::AssigningToValue(self.execute(*lhs)?.as_string())),
-                    }
-                } else if let Token::AltAssign = op {
-                    match *rhs {
+                    },
+                    Token::AltAssign => match *rhs {
                         Expression::Identifier(identifier) => {
                             let value = self.execute(*lhs)?;
                             self.set_var(identifier, value.clone());
                             Ok(value)
                         },
                         _ => Err(RuntimeError::AssigningToValue(self.execute(*rhs)?.as_string())),
-                    }
-                } else {
-                    let lval = self.execute(*lhs)?;
-                    let rval = self.execute(*rhs)?;
-                    match op {
-                        Token::Plus => match lval {
-                            Value::Number(num1) => match rval {
-                                Value::Number(num2) => Ok(Value::Number(num1 + num2)),
-                                Value::Matrix(_) => Err(RuntimeError::InvalidOperation(format!("{:?} + {:?}", lval, rval))),
-                            },
-                            Value::Matrix(mut mat1) => match rval {
-                                Value::Number(_) => Err(RuntimeError::InvalidOperation(format!("matrix + {:?}", rval))),
-                                Value::Matrix(ref mat2) => {
-                                    for (vec1, vec2) in iter::zip(mat1.iter_mut(), mat2) {
-                                        for (num1, num2) in iter::zip(vec1, vec2) {
-                                            *num1 += num2;
-                                        }
-                                    }
-                                    Ok(Value::Matrix(mat1))
-                                },
-                            },
-                        },
-                        Token::Minus => match lval {
-                            Value::Number(num1) => match rval {
-                                Value::Number(num2) => Ok(Value::Number(num1 - num2)),
-                                Value::Matrix(_) => Err(RuntimeError::InvalidOperation(format!("{:?} - {:?}", lval, rval))),
-                            },
-                            Value::Matrix(mut mat1) => match rval {
-                                Value::Number(_) => Err(RuntimeError::InvalidOperation(format!("matrix - {:?}", rval))),
-                                Value::Matrix(ref mat2) => {
-                                    for (vec1, vec2) in iter::zip(mat1.iter_mut(), mat2) {
-                                        for (num1, num2) in iter::zip(vec1, vec2) {
-                                            *num1 -= num2;
-                                        }
-                                    }
-                                    Ok(Value::Matrix(mat1))
-                                },
-                            },
-                        },
-                        Token::Mult => match lval {
-                            Value::Number(num1) => match rval {
-                                Value::Number(num2) => Ok(Value::Number(num1 * num2)),
-                                Value::Matrix(mut mat2) => {
-                                    for vec in mat2.iter_mut() {
-                                        for num in vec {
-                                            *num *= num1;
-                                        }
-                                    }
-                                    Ok(Value::Matrix(mat2))
-                                },
-                            },
-                            Value::Matrix(mut mat1) => match rval {
-                                Value::Number(num2) => {
-                                    for vec in mat1.iter_mut() {
-                                        for num in vec {
-                                            *num *= num2;
-                                        }
-                                    }
-                                    Ok(Value::Matrix(mat1))
-                                },
-                                Value::Matrix(mat2) => {
-                                    let m1 =  mat1.len();
-                                    let m2 = mat2.len();
-                                    let n1 = mat1.get(0).map(|r| r.len()).unwrap_or(0);
-                                    let n2 = mat2.get(0).map(|r| r.len()).unwrap_or(0);
-
-                                    if m1 == 0 || m2 == 0 || n1 != m2 {
-                                        return Err(RuntimeError::IncompatibleMatrices(m1, n1, m2, n2))
-                                    }
-
-                                    let mut output_rows: Vec<Vec<f64>> = iter::repeat(Vec::new()).take(m1).collect();
-
-                                    for (row_i, row1) in mat1.iter().enumerate() {
-                                        for col_i in 0..n2 {
-                                            let output_num: f64 = mat2.iter()
-                                                .enumerate()
-                                                .map(|(num_i, row2)| row1[num_i] * row2[col_i])
-                                                .sum();
-                                            output_rows[row_i].push(output_num);
-                                        }
-                                    }
-
-                                    Ok(Value::Matrix(output_rows))
-                                }
-                            },
-                        },
-                        Token::Div => todo!(),
-                        Token::Pow => todo!(),
-                        _ => Err(RuntimeError::ParserFailure("ops got set up weird".into())),
+                    },
+                    _ => {
+                        let lval = self.execute(*lhs)?;
+                        let rval = self.execute(*rhs)?;
+                        lval.binary_op(op, &rval)
                     }
                 }
             },
@@ -213,12 +131,12 @@ impl Context<'_> {
                             }
                             Err(e) => Err(e),
                         })
-                        .collect::<Result<Vec<f64>, RuntimeError>>()
+                        .collect::<Result<Vec<Num>, RuntimeError>>()
                 };
 
                 let evaluated_rows = rows.into_iter()
                     .map(map_row)
-                    .collect::<Result<Vec<Vec<f64>>, RuntimeError>>()?;
+                    .collect::<Result<MatrixBody, RuntimeError>>()?;
 
                 let num_cols = evaluated_rows.get(0).map(|row| row.len()).unwrap_or(0);
 
@@ -234,6 +152,124 @@ impl Context<'_> {
             Expression::Empty => Ok(Value::Number(0.0)), // this might need to be handled different in some cases
         }
     }
+}
+
+// transformations
+impl Value {
+    pub fn binary_op(&self, op: Token, rhs: &Value) -> Result<Value, RuntimeError> {
+        match op {
+            Token::Plus => match self {
+                Value::Number(num1) => match rhs {
+                    Value::Number(num2) => Ok(Value::Number(num1 + num2)),
+                    Value::Matrix(_) => Err(RuntimeError::InvalidOperation(format!("{:?} + {:?}", self, rhs))),
+                },
+                Value::Matrix(mat1) => match rhs {
+                    Value::Number(_) => Err(RuntimeError::InvalidOperation(format!("matrix + {:?}", rhs))),
+                    Value::Matrix(mat2) => matrix_matrix_transform_elements(mat1, mat2, |(num1, num2)| num1 + num2),
+                },
+            },
+            Token::Minus => match self {
+                Value::Number(num1) => match rhs {
+                    Value::Number(num2) => Ok(Value::Number(num1 - num2)),
+                    Value::Matrix(_) => Err(RuntimeError::InvalidOperation(format!("{:?} - {:?}", self, rhs))),
+                },
+                Value::Matrix(mat1) => match rhs {
+                    Value::Number(_) => Err(RuntimeError::InvalidOperation(format!("matrix - {:?}", rhs))),
+                    Value::Matrix(mat2) => matrix_matrix_transform_elements(mat1, mat2, |(num1, num2)| num1 - num2),
+                },
+            },
+            Token::Mult => match self {
+                Value::Number(num1) => match rhs {
+                    Value::Number(num2) => Ok(Value::Number(num1 * num2)),
+                    Value::Matrix(mat2) => matrix_transform_elements(mat2, |num| num * num1),
+                },
+                Value::Matrix(mat1) => match rhs {
+                    Value::Number(num2) => matrix_transform_elements(mat1, |num| num * num2),
+                    Value::Matrix(mat2) => matrix_multiplication(mat1, mat2),
+                },
+            },
+            Token::Div => match self {
+                Value::Number(num1) => match rhs {
+                    Value::Number(num2) => Ok(Value::Number(num1 / num2)),
+                    Value::Matrix(_) => Err(RuntimeError::InvalidOperation(format!("{num1} / matrix"))),
+                },
+                Value::Matrix(_) => match rhs {
+                    Value::Number(_) => Err(RuntimeError::InvalidOperation(format!("matrix / number"))),
+                    Value::Matrix(_) => Err(RuntimeError::InvalidOperation(format!("matrix / matrix"))),
+                }
+            },
+            Token::Pow => match self {
+                Value::Number(num1) => match rhs {
+                    Value::Number(num2) => Ok(Value::Number(num1.powf(*num2))),
+                    Value::Matrix(_) => Err(RuntimeError::InvalidOperation(format!("number ^ matrix"))),
+                },
+                Value::Matrix(_mat1) => match rhs {
+                    Value::Number(_num2) => todo!(),
+                    Value::Matrix(_) => Err(RuntimeError::InvalidOperation(format!("matrix ^ matrix"))),
+                }
+            },
+            _ => Err(RuntimeError::ParserFailure("ops got set up weird".into())),
+        }
+    }
+}
+
+fn match_matrices(mat1: &MatrixBody, mat2: &MatrixBody, matcher: impl Fn((usize, usize, usize, usize)) -> bool) -> Result<(), RuntimeError> {
+    let m1 = mat1.len();
+    let m2 = mat2.len();
+    let n1 = mat1.get(0).map(|v| v.len()).unwrap_or(0);
+    let n2 = mat2.get(0).map(|v| v.len()).unwrap_or(0);
+    match matcher((m1, n1, m2, n2)) {
+        true => Ok(()),
+        false => Err(RuntimeError::IncompatibleMatrices(m1, n1, m2, n2)),
+    }
+}
+
+fn matrix_transform_elements(matrix: &MatrixBody, transform: impl Fn(&Num) -> Num) -> Result<Value, RuntimeError> {
+    let res = matrix.iter()
+        .map(|vec| {
+            vec.iter()
+                .map(&transform)
+                .collect::<Vec<_>>()
+        })
+        .collect();
+    Ok(Value::Matrix(res))
+}
+
+fn matrix_matrix_transform_elements(mat1: &MatrixBody, mat2: &MatrixBody, transform: impl Fn((&Num, &Num)) -> Num) -> Result<Value, RuntimeError> {
+    match_matrices(mat1, mat2, |(m1, n1, m2, n2)| m1 == m2 && n1 == n2)?;
+    let res = iter::zip(mat1, mat2)
+        .map(|(vec1, vec2)| {
+            iter::zip(vec1, vec2)
+                .map(&transform)
+                .collect::<Vec<_>>()
+        })
+        .collect();
+    Ok(Value::Matrix(res))
+}
+
+fn matrix_multiplication(mat1: &MatrixBody, mat2: &MatrixBody) -> Result<Value, RuntimeError> {
+    let m1 =  mat1.len();
+    let m2 = mat2.len();
+    let n1 = mat1.get(0).map(|r| r.len()).unwrap_or(0);
+    let n2 = mat2.get(0).map(|r| r.len()).unwrap_or(0);
+
+    if m1 == 0 || m2 == 0 || n1 != m2 {
+        return Err(RuntimeError::IncompatibleMatrices(m1, n1, m2, n2))
+    }
+
+    let mut output_rows: MatrixBody = iter::repeat(Vec::new()).take(m1).collect();
+
+    for (row_i, row1) in mat1.iter().enumerate() {
+        for col_i in 0..n2 {
+            let output_num: Num = mat2.iter()
+                .enumerate()
+                .map(|(num_i, row2)| row1[num_i] * row2[col_i])
+                .sum();
+            output_rows[row_i].push(output_num);
+        }
+    }
+
+    Ok(Value::Matrix(output_rows))
 }
 
 // displaying values

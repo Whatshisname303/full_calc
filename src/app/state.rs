@@ -1,7 +1,7 @@
 use std::io;
 
 use crate::parser::{self, highlighting::{get_highlight_tokens, HighlightToken, HighlightTokenType}, syntax_tree::{self, Expression}, tokens::Token};
-use super::{commands, config::Config, executor::{RuntimeError, Value}, user_scripts::{self, ScriptError}};
+use super::{builtin_functions, commands, config::Config, executor::{RuntimeError, Value}, user_scripts::{self, ScriptError}};
 
 use ratatui::{
     prelude::*,
@@ -141,6 +141,15 @@ impl App<'_> {
         if let Err(ScriptError::ScriptNotFound(_)) = app.run_script("init") {
             app.context.push_history_msg("create init.txt inside your config dir to load a default script");
         }
+
+        for (name, params, func) in builtin_functions::FUNCTIONS {
+            app.context.set_function(FunctionDef {
+                name: name.to_string(),
+                params: params.iter().map(|s| s.to_string()).collect(),
+                body: FunctionBody::Builtin(Box::new(func)),
+            });
+        }
+
         app
     }
 

@@ -19,7 +19,8 @@ pub enum RuntimeError {
     MatrixUnevenColumns(usize, usize),
     NestedMatrix,
     IncompatibleMatrices(usize, usize, usize, usize),
-    InvalidFunctionArguments{fname: String, expected: usize, got: usize},
+    WrongNumFunctionArgs{fname: String, expected: usize, got: usize},
+    BuiltinFuncErr(String),
 }
 
 impl fmt::Display for RuntimeError {
@@ -33,7 +34,8 @@ impl fmt::Display for RuntimeError {
             RuntimeError::MatrixUnevenColumns(col1, col2) => write!(f, "matrix columns must be equal length, found {} and {}", col1, col2),
             RuntimeError::NestedMatrix => write!(f, "nested matrices not supported"),
             RuntimeError::IncompatibleMatrices(m1, n1, m2, n2) => write!(f, "cannot multiply {m1}x{n1} with {m2}x{n2}"),
-            RuntimeError::InvalidFunctionArguments { fname, expected, got } => write!(f, "{fname} expected {expected} arguments but got {got}"),
+            RuntimeError::WrongNumFunctionArgs { fname, expected, got } => write!(f, "{fname} expected {expected} arguments but got {got}"),
+            RuntimeError::BuiltinFuncErr(st) => write!(f, "{st}"),
         }
     }
 }
@@ -188,7 +190,7 @@ impl Context<'_> {
                     FunctionBody::Builtin(closure) => closure(arg_values),
                     FunctionBody::User(body) => {
                         if function_def.params.len() != arg_values.len() {
-                            return Err(RuntimeError::InvalidFunctionArguments {
+                            return Err(RuntimeError::WrongNumFunctionArgs {
                                 fname,
                                 expected: function_def.params.len(),
                                 got: arg_values.len(),

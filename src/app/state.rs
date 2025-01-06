@@ -26,12 +26,19 @@ pub struct FunctionDef {
     pub body: FunctionBody,
 }
 
+pub enum PopupName {
+    Vars,
+    Functions,
+    Commands,
+}
+
 pub struct Context<'a> {
     pub history: Vec<HistoryEntry>,
     pub history_scroll: u16,
     pub current_line: String,
     pub vars: Vec<(String, Value)>,
     pub functions: Vec<FunctionDef>,
+    pub current_popup: Option<PopupName>,
     pub parent_context: Option<&'a Context<'a>>, // for temporary function contexts
 }
 
@@ -93,6 +100,7 @@ impl Default for Context<'_> {
             current_line: String::new(),
             vars: Vec::new(),
             functions: Vec::new(),
+            current_popup: None,
             parent_context: None,
         };
         ctx.vars.push(("ans".to_string(), Value::Number(0.0)));
@@ -172,7 +180,13 @@ impl App<'_> {
                 }
             },
             KeyCode::Char(char) => {
-                self.context.current_line.push(char);
+                if self.context.current_popup.is_some() {
+                    if char == 'q' {
+                        self.context.current_popup = None;
+                    }
+                } else {
+                    self.context.current_line.push(char);
+                }
             },
             _ => {},
         };

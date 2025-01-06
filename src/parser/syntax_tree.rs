@@ -1,5 +1,3 @@
-// no parsing implemented for matrices yet
-
 use std::fmt;
 
 use super::tokens::Token;

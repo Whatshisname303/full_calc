@@ -1,6 +1,6 @@
 use crate::parser::tokens::Token;
 use crate::parser::general_parsing;
-use super::{config::Panel, state::{App, Context}, user_scripts::{read_script, ScriptError}};
+use super::{config::Panel, state::{App, Context, PopupName}, user_scripts::ScriptError};
 
 // returns is_handled, errors are handled without warning caller
 pub fn handle_commands(app: &mut App, tokens: &Vec<Token>) -> bool {
@@ -98,12 +98,20 @@ fn declare_function(app: &mut App, tokens: &Vec<Token>) {
     }
 }
 
-fn update_config(app: &mut App, tokens: &Vec<Token>) {
+fn update_config(_app: &mut App, _tokens: &Vec<Token>) {
     todo!();
 }
 
 fn show_page(app: &mut App, tokens: &Vec<Token>) {
-    todo!();
+    match tokens.get(1) {
+        Some(Token::Identifier(ident)) => match ident.as_str() {
+            "vars" => app.context.current_popup = Some(PopupName::Vars),
+            "functions" => app.context.current_popup = Some(PopupName::Functions),
+            "commands" => app.context.current_popup = Some(PopupName::Commands),
+            _ => app.context.push_history_text("usage: show <vars/functions/commands>"),
+        },
+        _ => app.context.push_history_text("usage: show <vars/functions/commands>"),
+    }
 }
 
 fn toggle_panel(app: &mut App, tokens: &Vec<Token>) {

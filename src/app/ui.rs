@@ -1,16 +1,37 @@
 use std::iter;
 
+use layout::Flex;
 use ratatui::{
     prelude::*,
-    widgets::{Block, Paragraph},
+    widgets::{Block, Clear, Paragraph},
 };
 use symbols::border;
 
 use crate::parser::highlighting::{get_highlight_tokens, HighlightToken, HighlightTokenType};
 
-use super::{config::Panel, state::App};
+use super::{config::Panel, state::{App, PopupName}};
+
+
 
 impl App<'_> {
+    fn map_token_colors(&self, token: &HighlightToken) -> Span<'_> {
+        let theme = &self.config.theme;
+        match token.kind {
+            HighlightTokenType::Identifier => {
+                match self.context.get_var(&token.text).is_some() || self.context.get_function(&token.text).is_some() {
+                    true => token.text.clone().fg(theme.identifier),
+                    false => token.text.clone().fg(theme.unknown_identifier),
+                }
+            },
+            HighlightTokenType::Number => token.text.clone().fg(theme.number),
+            HighlightTokenType::Operator => token.text.clone().fg(theme.operator),
+            HighlightTokenType::Command => token.text.clone().fg(theme.command),
+            HighlightTokenType::Space => token.text.clone().fg(Color::Black),
+            HighlightTokenType::Tab => " ".repeat(self.config.tab_width).fg(Color::Black),
+            HighlightTokenType::Newline => panic!("newlines are delimiters"),
+        }
+    }
+
     fn get_horizontal_layout(&self, area: Rect) -> (Rect, Rect) {
         let [text_area, panel_area] = match self.config.panels.len() {
             0 => Layout::horizontal([
@@ -26,32 +47,16 @@ impl App<'_> {
     }
 
     fn render_text_area(&self, area: Rect, buf: &mut Buffer) {
-        let theme = &self.config.theme;
-        let map_token_colors = |token: &HighlightToken| match token.kind {
-            HighlightTokenType::Identifier => {
-                match self.context.get_var(&token.text).is_some() || self.context.get_function(&token.text).is_some() {
-                    true => token.text.clone().fg(theme.identifier),
-                    false => token.text.clone().fg(theme.unknown_identifier),
-                }
-            },
-            HighlightTokenType::Number => token.text.clone().fg(theme.number),
-            HighlightTokenType::Operator => token.text.clone().fg(theme.operator),
-            HighlightTokenType::Command => token.text.clone().fg(theme.command),
-            HighlightTokenType::Space => token.text.clone().fg(Color::Black),
-            HighlightTokenType::Tab => " ".repeat(self.config.tab_width).fg(Color::Black),
-            HighlightTokenType::Newline => panic!("newlines are delimiters"),
-        };
-
         let mut lines: Vec<Line<'_>> = self.context.history.iter().flat_map(|history_entry| {
             let bg_color = match history_entry.is_output {
-                true => theme.result_line_bg,
-                false => theme.input_line_bg,
+                true => self.config.theme.result_line_bg,
+                false => self.config.theme.input_line_bg,
             };
             history_entry.tokens
                 .split(|token| token.kind == HighlightTokenType::Newline)
                 .map(|tokens|
                     tokens.iter()
-                        .map(map_token_colors)
+                        .map(|token| self.map_token_colors(token))
                         .collect::<Vec<_>>()
                 )
                 .map(|tokens| Line::from(tokens).bg(bg_color))
@@ -60,10 +65,10 @@ impl App<'_> {
 
         let current_line = get_highlight_tokens(&self.context.current_line)
             .iter()
-            .map(map_token_colors)
+            .map(|token| self.map_token_colors(token))
             .collect::<Vec<_>>();
 
-        lines.push(Line::from(current_line).bg(theme.current_line_bg));
+        lines.push(Line::from(current_line).bg(self.config.theme.current_line_bg));
 
         Paragraph::new(lines).scroll((self.context.history_scroll, 0)).render(area, buf);
     }
@@ -106,6 +111,49 @@ impl App<'_> {
         let block = Block::bordered().title(Line::from("Preview".bold())).border_set(border::THICK);
         Paragraph::new(Text::from("Hello")).block(block)
     }
+
+    fn get_vars_popup(&self) -> Paragraph<'_> {
+        let lines: Vec<_> = self.context.vars.iter()
+            .map(|(name, value)| Line::from(format!("{} = {:?}", name, value)))
+            .collect();
+        let block = Block::bordered().title("Vars");
+        Paragraph::new(lines).block(block)
+    }
+
+    fn get_functions_popup(&self) -> Paragraph<'_> {
+        let lines: Vec<_> = self.context.functions.iter()
+            .map(|function_def| Line::from(format!("{}({})", function_def.name, function_def.params.join(", "))))
+            .collect();
+        let block = Block::bordered().title("Functions");
+        Paragraph::new(lines).block(block)
+    }
+
+    fn get_commands_popup(&self) -> Paragraph<'_> {
+        let lines: Vec<_> = vec!["not implemented yet", "gotta write out the stuff manually here later"].iter()
+            .map(|line| Line::from(line.to_string()))
+            .collect();
+        let block = Block::bordered().title("Commands");
+        Paragraph::new(lines).block(block)
+    }
+
+    fn render_popup(&self, popup: &PopupName, area: Rect, buf: &mut Buffer) {
+        let [popup_area] = Layout::horizontal([Constraint::Percentage(80)])
+            .flex(Flex::Center)
+            .areas(area);
+        let [popup_area] = Layout::vertical([Constraint::Percentage(80)])
+            .flex(Flex::Center)
+            .areas(popup_area);
+
+        Clear.render(popup_area, buf);
+
+        let popup_context = match popup {
+            PopupName::Vars => self.get_vars_popup(),
+            PopupName::Functions => self.get_functions_popup(),
+            PopupName::Commands => self.get_commands_popup(),
+        };
+
+        popup_context.render(popup_area, buf);
+    }
 }
 
 impl Widget for &App<'_> {
@@ -116,6 +164,10 @@ impl Widget for &App<'_> {
 
         if self.config.panels.len() > 0 {
             self.render_panels(panel_area, buf);
+        }
+
+        if let Some(popup) = &self.context.current_popup {
+            self.render_popup(popup, area, buf);
         }
     }
 }

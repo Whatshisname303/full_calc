@@ -115,6 +115,7 @@ impl App<'_> {
     fn get_vars_popup(&self) -> Paragraph<'_> {
         let lines: Vec<_> = self.context.vars.iter()
             .map(|(name, value)| Line::from(format!("{} = {:?}", name, value)))
+            .rev()
             .collect();
         let block = Block::bordered().title("Vars");
         Paragraph::new(lines).block(block)
@@ -123,6 +124,7 @@ impl App<'_> {
     fn get_functions_popup(&self) -> Paragraph<'_> {
         let lines: Vec<_> = self.context.functions.iter()
             .map(|function_def| Line::from(format!("{}({})", function_def.name, function_def.params.join(", "))))
+            .rev()
             .collect();
         let block = Block::bordered().title("Functions");
         Paragraph::new(lines).block(block)

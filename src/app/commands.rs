@@ -98,8 +98,8 @@ fn declare_function(app: &mut App, tokens: &Vec<Token>) {
     }
 }
 
-fn update_config(_app: &mut App, _tokens: &Vec<Token>) {
-    todo!();
+fn update_config(app: &mut App, tokens: &Vec<Token>) {
+    app.update_config(tokens);
 }
 
 fn show_page(app: &mut App, tokens: &Vec<Token>) {

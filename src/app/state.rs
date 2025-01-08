@@ -1,4 +1,4 @@
-use std::io;
+use std::{io, rc::Rc};
 
 use crate::parser::{self, highlighting::{get_highlight_tokens, HighlightToken, HighlightTokenType}, syntax_tree::{self, Expression}, tokens::Token};
 use super::{builtin_functions, commands, config::Config, executor::{RuntimeError, Value}, user_scripts::{self, ScriptError}};
@@ -15,9 +15,10 @@ pub struct HistoryEntry {
     pub is_output: bool,
 }
 
+#[derive(Clone)]
 pub enum FunctionBody {
     User(Expression),
-    Builtin(Box<dyn Fn(Vec<Value>) -> Result<Value, RuntimeError>>),
+    Builtin(Rc<dyn Fn(Vec<Value>) -> Result<Value, RuntimeError>>),
 }
 
 pub struct FunctionDef {
@@ -154,7 +155,7 @@ impl App<'_> {
             app.context.set_function(FunctionDef {
                 name: name.to_string(),
                 params: params.iter().map(|s| s.to_string()).collect(),
-                body: FunctionBody::Builtin(Box::new(func)),
+                body: FunctionBody::Builtin(Rc::new(func)),
             });
         }
 

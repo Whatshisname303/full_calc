@@ -101,9 +101,32 @@ impl App<'_> {
     }
 
     fn get_autocomplete_panel(&self) -> Paragraph<'_> {
-        // TODO
+        let lines = match get_highlight_tokens(&self.context.current_line).last() {
+            Some(token) => match token.kind {
+                HighlightTokenType::Identifier => self.context.vars.iter()
+                    .map(|(name, value)| (name, Some(value)))
+                    .chain(self.context.functions.iter().map(|function_def| (&function_def.name, None)))
+                    .filter(|(name, _)| name.contains(&token.text))
+                    .map(|(name, value)| {
+                        let (left_side, right_side) = name.split_once(&token.text).unwrap();
+                        let mut line_tokens = vec![
+                            left_side.fg(self.config.theme.unknown_identifier),
+                            token.text.clone().fg(self.config.theme.identifier),
+                            right_side.fg(self.config.theme.unknown_identifier),
+                        ];
+                        if let Some(value) = value {
+                            line_tokens.push(" = ".fg(self.config.theme.operator));
+                            line_tokens.push(value.short_string().fg(self.config.theme.number));
+                        }
+                        Line::from(line_tokens)
+                    })
+                    .collect(),
+                _ => Vec::new(),
+            },
+            _ => Vec::new(),
+        };
         let block = Block::bordered().title(Line::from("Autocomplete".bold())).border_set(border::THICK);
-        Paragraph::new(Text::from("Hi")).block(block)
+        Paragraph::new(Text::from(lines)).block(block)
     }
 
     fn get_preview_panel(&self) -> Paragraph<'_> {

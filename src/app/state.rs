@@ -180,6 +180,19 @@ impl App<'_> {
                     self.context.history_scroll -= 1;
                 }
             },
+            KeyCode::Tab => {
+                let mut tokens = get_highlight_tokens(&self.context.current_line);
+                if let Some(token) = tokens.pop() {
+                    let matching_var = self.context.vars.iter()
+                        .map(|(name, _)| name)
+                        .chain(self.context.functions.iter().map(|def| &def.name))
+                        .find(|name| name.contains(&token.text));
+                    if let Some(var_name) = matching_var {
+                        tokens.push(HighlightToken::text(var_name.clone()));
+                        self.context.current_line = tokens.iter().map(|token| token.to_string()).collect();
+                    }
+                }
+            },
             KeyCode::Char(char) => {
                 if self.context.current_popup.is_some() {
                     if char == 'q' {

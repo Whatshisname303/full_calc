@@ -1,1 +1,25 @@
-5 + 5
+-- init.txt is the default file that will be loaded whenever you run the
+-- program, as well as whenever you reload if you don't also pass raw.
+
+-- The config folder this file is located in is the only folder that has
+-- any meaning to it. The other folders are just for organization so that
+-- different resources can be swapped out easily.
+
+-- there aren't many colors to change, but hey, themes
+-- load themes.bluey
+load themes.default
+
+-- file for general constants
+load constants.general
+
+-- setting up panels
+panel vars on
+panel autocomplete on
+
+-- All the built in functions are namespaced under std by default since
+-- the functions are pretty common words and there is no way to delete
+-- them, although it's probably nicer having them accessible directly.
+use std
+
+-- clear the output so your terminal starts clean
+clear

@@ -73,7 +73,6 @@ pub struct Theme {
     pub number: Color,
     pub identifier: Color,
     pub unknown_identifier: Color,
-    pub function: Color,
     pub command: Color,
     pub operator: Color,
     pub input_line_bg: Color,
@@ -90,12 +89,11 @@ pub struct Theme {
 impl Default for Theme {
     fn default() -> Self {
         Theme {
-            number: Color::Rgb(255, 130, 30),
+            number: Color::Rgb(230, 134, 57),
             identifier: Color::Rgb(240, 240, 240),
             unknown_identifier: Color::Rgb(180, 180, 180),
-            function: Color::LightMagenta,
-            command: Color::Rgb(255, 40, 60),
-            operator: Color::LightYellow,
+            command: Color::Rgb(255, 87, 87),
+            operator: Color::Rgb(232, 208, 151),
             input_line_bg: Color::Rgb(60, 60, 60),
             result_line_bg: Color::Rgb(40, 40, 40),
             current_line_bg: Color::Rgb(60, 60, 60),
@@ -135,7 +133,7 @@ impl Default for Config {
             expand_matrices: true,
             is_radians: false,
             theme: Theme::default(),
-            panels: vec![Panel::ExpPreview, Panel::Autocomplete, Panel::Variables],
+            panels: vec![Panel::Autocomplete, Panel::Variables],
             tab_width: 4,
         }
     }

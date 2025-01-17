@@ -152,6 +152,11 @@ impl TreeBuilder {
         let mut args = Vec::new();
         let mut next_arg = self.parse()?;
 
+        // empty means the closing ')' is already consumed
+        if let Expression::Empty = next_arg {
+            return Ok(args)
+        }
+
         while let Token::Comma = self.current() {
             self.advance(1);
             args.push(next_arg);

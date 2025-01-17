@@ -104,7 +104,17 @@ impl Default for Context<'_> {
             current_popup: None,
             parent_context: None,
         };
+
         ctx.vars.push(("ans".to_string(), Value::Number(0.0)));
+
+        for (name, params, func) in builtin_functions::FUNCTIONS {
+            ctx.set_function(FunctionDef {
+                name: name.to_string(),
+                params: params.iter().map(|s| s.to_string()).collect(),
+                body: FunctionBody::Builtin(Rc::new(func)),
+            });
+        }
+
         ctx
     }
 }
@@ -149,14 +159,6 @@ impl App<'_> {
         // also might add a tip for if no config dir exists
         if let Err(ScriptError::ScriptNotFound(_)) = app.run_script("init") {
             app.context.push_history_msg("create init.txt inside your config dir to load a default script");
-        }
-
-        for (name, params, func) in builtin_functions::FUNCTIONS {
-            app.context.set_function(FunctionDef {
-                name: name.to_string(),
-                params: params.iter().map(|s| s.to_string()).collect(),
-                body: FunctionBody::Builtin(Rc::new(func)),
-            });
         }
 
         app

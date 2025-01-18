@@ -68,7 +68,151 @@ fn cross(values: Vec<Value>) -> Result<Value, RuntimeError> {
     ]))
 }
 
-pub static FUNCTIONS: [(&str, &[&str], fn(Vec<Value>) -> Result<Value, RuntimeError>); 2] = [
+fn unit(values: Vec<Value>) -> Result<Value, RuntimeError> {
+    let mut matrix = match values.get(0) {
+        Some(Value::Matrix(input)) => input.clone(),
+        _ => return Err(RuntimeError::BuiltinFuncErr("unit expects a vector".to_string())),
+    };
+
+    if matrix.is_empty() {
+        return Err(RuntimeError::BuiltinFuncErr("cannnot take unit of empty vector".to_string()));
+    }
+
+    if matrix[0].len() != 1 {
+        return Err(RuntimeError::BuiltinFuncErr("unit expects vector, got matrix".to_string()));
+    }
+
+    let magnitude = matrix.iter().map(|row| row[0].powi(2)).sum::<f64>().sqrt();
+
+    for row in matrix.iter_mut() {
+        row[0] /= magnitude;
+    }
+
+    Ok(Value::Matrix(matrix))
+}
+
+fn magnitude(values: Vec<Value>) -> Result<Value, RuntimeError> {
+    let matrix = match values.get(0) {
+        Some(Value::Matrix(input)) => input,
+        _ => return Err(RuntimeError::BuiltinFuncErr("magnitude expects a vector".to_string())),
+    };
+
+    if matrix.is_empty() {
+        return Ok(Value::Number(0.0));
+    }
+
+    if matrix[0].len() != 1 {
+        return Err(RuntimeError::BuiltinFuncErr("magnitude expects vector, got matrix".to_string()));
+    }
+
+    let magnitude = matrix.iter().map(|row| row[0].powi(2)).sum::<f64>().sqrt();
+
+    Ok(Value::Number(magnitude))
+}
+
+fn inv(_values: Vec<Value>) -> Result<Value, RuntimeError> {
+    todo!();
+}
+
+fn det(values: Vec<Value>) -> Result<Value, RuntimeError> {
+    let matrix = match values.get(0) {
+        Some(Value::Matrix(input)) => input,
+        _ => return Err(RuntimeError::BuiltinFuncErr("det expects a matrix".to_string())),
+    };
+
+    if matrix.is_empty() {
+        return Ok(Value::Number(0.0))
+    }
+
+    let rows = matrix.len();
+    let cols = matrix[0].len();
+
+    if rows != cols {
+        return Err(RuntimeError::BuiltinFuncErr("det requires equal row and column length".to_string()));
+    }
+
+    todo!();
+}
+
+fn transpose(_values: Vec<Value>) -> Result<Value, RuntimeError> {
+    todo!();
+}
+
+fn rref(_values: Vec<Value>) -> Result<Value, RuntimeError> {
+    todo!();
+}
+
+fn sin(values: Vec<Value>) -> Result<Value, RuntimeError> {
+    match values.get(0) {
+        Some(Value::Number(input)) => Ok(Value::Number(input.sin())),
+        _ => Err(RuntimeError::BuiltinFuncErr("sin expects 1 number".to_string())),
+    }
+}
+
+fn cos(values: Vec<Value>) -> Result<Value, RuntimeError> {
+    match values.get(0) {
+        Some(Value::Number(input)) => Ok(Value::Number(input.cos())),
+        _ => Err(RuntimeError::BuiltinFuncErr("cos expects 1 number".to_string())),
+    }
+}
+
+fn tan(values: Vec<Value>) -> Result<Value, RuntimeError> {
+    match values.get(0) {
+        Some(Value::Number(input)) => Ok(Value::Number(input.tan())),
+        _ => Err(RuntimeError::BuiltinFuncErr("tan expects 1 number".to_string())),
+    }
+}
+
+fn asin(values: Vec<Value>) -> Result<Value, RuntimeError> {
+    match values.get(0) {
+        Some(Value::Number(input)) => Ok(Value::Number(input.asin())),
+        _ => Err(RuntimeError::BuiltinFuncErr("asin expects 1 number".to_string())),
+    }
+}
+
+fn acos(values: Vec<Value>) -> Result<Value, RuntimeError> {
+    match values.get(0) {
+        Some(Value::Number(input)) => Ok(Value::Number(input.acos())),
+        _ => Err(RuntimeError::BuiltinFuncErr("acos expects 1 number".to_string())),
+    }
+}
+
+fn atan(values: Vec<Value>) -> Result<Value, RuntimeError> {
+    match values.get(0) {
+        Some(Value::Number(input)) => Ok(Value::Number(input.atan())),
+        _ => Err(RuntimeError::BuiltinFuncErr("atan expects 1 number".to_string())),
+    }
+}
+
+fn rad(values: Vec<Value>) -> Result<Value, RuntimeError> {
+    match values.get(0) {
+        Some(Value::Number(input)) => Ok(Value::Number(input.to_radians())),
+        _ => Err(RuntimeError::BuiltinFuncErr("rad expects 1 number".to_string())),
+    }
+}
+
+fn deg(values: Vec<Value>) -> Result<Value, RuntimeError> {
+    match values.get(0) {
+        Some(Value::Number(input)) => Ok(Value::Number(input.to_degrees())),
+        _ => Err(RuntimeError::BuiltinFuncErr("deg expects 1 number".to_string())),
+    }
+}
+
+pub static FUNCTIONS: [(&str, &[&str], fn(Vec<Value>) -> Result<Value, RuntimeError>); 16] = [
     ("std.dot", &["vec1", "vec2"], dot),
     ("std.cross", &["vec1", "vec2"], cross),
+    ("std.unit", &["vector"], unit),
+    ("std.magnitude", &["vector"], magnitude),
+    ("std.inv", &["matrix"], inv),
+    ("std.det", &["matrix"], det),
+    ("std.transpose", &["matrix"], transpose),
+    ("std.rref", &["matrix"], rref),
+    ("std.sin", &["number"], sin),
+    ("std.cos", &["number"], cos),
+    ("std.tan", &["number"], tan),
+    ("std.asin", &["number"], asin),
+    ("std.acos", &["number"], acos),
+    ("std.atan", &["number"], atan),
+    ("std.rad", &["number"], rad),
+    ("std.deg", &["number"], deg),
 ];

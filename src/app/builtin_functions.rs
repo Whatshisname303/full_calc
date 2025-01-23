@@ -114,6 +114,33 @@ fn inv(_values: Vec<Value>) -> Result<Value, RuntimeError> {
     todo!();
 }
 
+// helper function for evaluating det recursively
+fn det_recurse(mut mat: Vec<Vec<f64>>) -> f64 {
+    let rows = mat.len();
+
+    if rows == 2 {
+        return mat[0][0] * mat[1][1] - mat[1][0] * mat[0][1];
+    }
+
+    let mut sum = 0.0;
+
+    let const_row = mat.pop().unwrap();
+
+    for i in 0..rows {
+        let mut submat = mat.clone();
+        for row in submat.iter_mut() {
+            row.remove(i);
+        }
+        let mut subdet = det_recurse(submat);
+        if (rows + i) % 2 != 0 {
+            subdet = -subdet;
+        }
+        sum += subdet * const_row[i];
+    }
+
+    sum
+}
+
 fn det(values: Vec<Value>) -> Result<Value, RuntimeError> {
     let matrix = match values.get(0) {
         Some(Value::Matrix(input)) => input,
@@ -131,7 +158,11 @@ fn det(values: Vec<Value>) -> Result<Value, RuntimeError> {
         return Err(RuntimeError::BuiltinFuncErr("det requires equal row and column length".to_string()));
     }
 
-    todo!();
+    if rows == 1 {
+        return Ok(Value::Number(matrix[0][0]));
+    }
+
+    Ok(Value::Number(det_recurse(matrix.clone())))
 }
 
 fn transpose(_values: Vec<Value>) -> Result<Value, RuntimeError> {

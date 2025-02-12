@@ -36,6 +36,7 @@ pub enum PopupName {
 pub struct Context<'a> {
     pub history: Vec<HistoryEntry>,
     pub history_scroll: u16,
+    pub should_scroll_to_fit: bool,
     pub current_line: String,
     pub vars: Vec<(String, Value)>,
     pub functions: Vec<FunctionDef>,
@@ -91,6 +92,12 @@ impl Context<'_> {
             is_output: true,
         });
     }
+
+    pub fn count_visible_lines(&mut self) -> usize {
+        self.history.iter()
+            .map(|entry| entry.tokens.split(|t| t.kind == HighlightTokenType::Newline).count())
+            .sum()
+    }
 }
 
 impl Default for Context<'_> {
@@ -98,6 +105,7 @@ impl Default for Context<'_> {
         let mut ctx = Context {
             history: Vec::new(),
             history_scroll: 0,
+            should_scroll_to_fit: true,
             current_line: String::new(),
             vars: Vec::new(),
             functions: Vec::new(),
@@ -129,7 +137,10 @@ impl App<'_> {
     /// runs the application's main loop until the user quits
     pub fn run(&mut self, terminal: &mut DefaultTerminal) -> io::Result<()> {
         while !self.exit {
-            terminal.draw(|frame| self.draw(frame))?;
+            terminal.draw(|frame| {
+                self.updates_with_frame(frame);
+                self.draw(frame);
+            })?;
             self.handle_events()?;
         }
         Ok(())
@@ -208,6 +219,20 @@ impl App<'_> {
         };
     }
 
+    // hacky solution, checks context flags like should_scroll_to_fit
+    // and updates state based on them here since a reference to frame is
+    // required to make the update
+    fn updates_with_frame(&mut self, frame: &mut Frame) {
+        if self.context.should_scroll_to_fit {
+            self.context.should_scroll_to_fit = false;
+            let height = frame.area().height as isize;
+            let lines = self.context.count_visible_lines() as isize;
+            let required = lines - height + 1;
+            let target = required.max(self.context.history_scroll as isize);
+            self.context.history_scroll = target.max(0) as u16;
+        }
+    }
+
     pub fn run_script(&mut self, script_name: &str) -> Result<(), ScriptError> {
         let script = user_scripts::read_script(script_name)?;
         for line in script.lines() {
@@ -224,6 +249,7 @@ impl App<'_> {
         self.context.history.push(HistoryEntry {tokens: highlight_tokens, is_output: false});
 
         self.context.current_line.clear();
+        self.context.should_scroll_to_fit = true;
 
         let mut tokens = match tokens {
             Ok(tokens) => tokens,

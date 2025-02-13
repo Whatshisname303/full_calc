@@ -34,6 +34,7 @@ pub fn handle_commands(app: &mut App, tokens: &Vec<Token>) -> bool {
 
 fn clear_history(app: &mut App) {
     app.context.history.clear();
+    app.context.history_scroll = 0;
 }
 
 fn exit_app(app: &mut App) {

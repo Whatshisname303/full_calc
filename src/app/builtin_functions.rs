@@ -110,35 +110,41 @@ fn magnitude(values: Vec<Value>) -> Result<Value, RuntimeError> {
     Ok(Value::Number(magnitude))
 }
 
-fn inv(_values: Vec<Value>) -> Result<Value, RuntimeError> {
-    todo!();
+fn inv(values: Vec<Value>) -> Result<Value, RuntimeError> {
+    let matrix = match values.get(0) {
+        Some(Value::Matrix(mat)) => mat,
+        _ => return Err(RuntimeError::BuiltinFuncErr("inv expects matrix".to_string())),
+    };
+
+    let rows = matrix.len();
+    let cols = matrix[0].len();
+
+    if rows != cols {
+        return Err(RuntimeError::BuiltinFuncErr("inv requires square matrix".to_string()));
+    }
+
+    let det = det_recurse(matrix);
+
+    if det == 0.0 {
+        return Err(RuntimeError::BuiltinFuncErr("matrix is not invertible".to_string()));
+    }
+
+    let mut adjoint = adjoint(matrix);
+
+    for row in adjoint.iter_mut() {
+        for col in row.iter_mut() {
+            *col /= det;
+        }
+    }
+
+    Ok(Value::Matrix(adjoint))
 }
 
-// helper function for evaluating det recursively
-fn det_recurse(mut mat: Vec<Vec<f64>>) -> f64 {
-    let rows = mat.len();
-
-    if rows == 2 {
-        return mat[0][0] * mat[1][1] - mat[1][0] * mat[0][1];
+fn transpose(values: Vec<Value>) -> Result<Value, RuntimeError> {
+    match values.get(0) {
+        Some(Value::Matrix(mat)) => Ok(Value::Matrix(trans(mat))),
+        _ => Err(RuntimeError::BuiltinFuncErr("transpose expects a matrix".to_string())),
     }
-
-    let mut sum = 0.0;
-
-    let const_row = mat.pop().unwrap();
-
-    for i in 0..rows {
-        let mut submat = mat.clone();
-        for row in submat.iter_mut() {
-            row.remove(i);
-        }
-        let mut subdet = det_recurse(submat);
-        if (rows + i) % 2 != 0 {
-            subdet = -subdet;
-        }
-        sum += subdet * const_row[i];
-    }
-
-    sum
 }
 
 fn det(values: Vec<Value>) -> Result<Value, RuntimeError> {
@@ -162,11 +168,7 @@ fn det(values: Vec<Value>) -> Result<Value, RuntimeError> {
         return Ok(Value::Number(matrix[0][0]));
     }
 
-    Ok(Value::Number(det_recurse(matrix.clone())))
-}
-
-fn transpose(_values: Vec<Value>) -> Result<Value, RuntimeError> {
-    todo!();
+    Ok(Value::Number(det_recurse(matrix)))
 }
 
 fn rref(_values: Vec<Value>) -> Result<Value, RuntimeError> {
@@ -227,6 +229,77 @@ fn deg(values: Vec<Value>) -> Result<Value, RuntimeError> {
         Some(Value::Number(input)) => Ok(Value::Number(input.to_degrees())),
         _ => Err(RuntimeError::BuiltinFuncErr("deg expects 1 number".to_string())),
     }
+}
+
+// -- matrix helper methods ---------------------------------------------------
+
+fn det_recurse(mat: &Vec<Vec<f64>>) -> f64 {
+    let size = mat.len();
+
+    if size == 2 {
+        return mat[0][0] * mat[1][1] - mat[1][0] * mat[0][1];
+    }
+
+    let mut sum = 0.0;
+
+    let mut submat = mat.clone();
+    let coefficients = submat.pop().unwrap();
+
+    for i in 0..size {
+        let mut minor = submat.clone();
+        for row in minor.iter_mut() {
+            row.remove(i);
+        }
+        let mut subdet = det_recurse(&minor);
+        if (i + size-1) % 2 != 0 {
+            subdet = -subdet;
+        }
+        sum += subdet * coefficients[i];
+    }
+
+    sum
+}
+
+// gets submatrix excluding row and col 0 indexed
+fn submatrix(matrix: &Vec<Vec<f64>>, row: usize, col: usize) -> Vec<Vec<f64>> {
+    let mut output = matrix.clone();
+    output.remove(row);
+    for row in output.iter_mut() {
+        row.remove(col);
+    }
+    output
+}
+
+fn adjoint(matrix: &Vec<Vec<f64>>) -> Vec<Vec<f64>> {
+    let size = matrix.len();
+    let mut output = vec![Vec::with_capacity(size); size];
+
+    for row in 0..size {
+        for col in 0..size {
+            let submat = submatrix(matrix, row, col);
+            let mut cofactor = det_recurse(&submat);
+            if (row + col) % 2 != 0 {
+                cofactor = -cofactor;
+            }
+            output[row].push(cofactor);
+        }
+    }
+
+    trans(&output)
+}
+
+fn trans(mat: &Vec<Vec<f64>>) -> Vec<Vec<f64>> {
+    let rows = mat.len();
+    let cols = mat[0].len();
+
+    let mut output: Vec<Vec<f64>> = vec![Vec::with_capacity(rows); cols];
+
+    for i in 0..rows {
+        for j in 0..cols {
+            output[j].push(mat[i][j]);
+        }
+    }
+    output
 }
 
 pub static FUNCTIONS: [(&str, &[&str], fn(Vec<Value>) -> Result<Value, RuntimeError>); 16] = [

@@ -92,7 +92,7 @@ impl Tokenizer<'_> {
     fn current_is_command(&self) -> bool {
         match self.current_buf.as_str() {
             "clear" | "quit" | "exit" | "reload" | "use" | "load" | "def" | "config" | "show" | "panel" => true,
-            "raw" | "theme" | "trig" | "deg" | "rad" | "vars" | "autocomplete" | "preview" | "functions" | "commands" => {
+            "raw" | "theme" | "trig" | "deg" | "rad" | "vars" | "autocomplete" | "preview" | "functions" | "help" => {
                 match self.tokens.iter().rev().find(|token| token.kind != HighlightTokenType::Space) {
                     Some(token) => match token.kind {
                         HighlightTokenType::Command => true,

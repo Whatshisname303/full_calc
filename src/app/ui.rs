@@ -141,7 +141,7 @@ impl App<'_> {
             .rev()
             .collect();
         let block = Block::bordered().title("Vars");
-        Paragraph::new(lines).block(block)
+        Paragraph::new(lines).scroll((self.context.modal_scroll, 0)).block(block)
     }
 
     fn get_functions_popup(&self) -> Paragraph<'_> {
@@ -150,22 +150,50 @@ impl App<'_> {
             .rev()
             .collect();
         let block = Block::bordered().title("Functions");
-        Paragraph::new(lines).block(block)
+        Paragraph::new(lines).scroll((self.context.modal_scroll, 0)).block(block)
     }
 
-    fn get_commands_popup(&self) -> Paragraph<'_> {
-        let lines: Vec<_> = vec!["not implemented yet", "gotta write out the stuff manually here later"].iter()
+    fn get_help_popup(&self) -> Paragraph<'_> {
+        let lines = [
+            "General:",
+            "      This page is more than 10 lines, scroll down with ctrl + arrowkeys",
+            "",
+            "      More detailed docs available at github.com/Whatshisname303/full_calc",
+            "",
+            "      Define matrices by separating columns with ',' and rows with ';'",
+            "      ex: [1, 2, 3; 4, 5, 6; 7, 8, 9]",
+            "",
+            "      Vectors are just matrices with a single column",
+            "",
+            "Controls:",
+            "    - arrowkeys: scroll view up and down",
+            "    - ctrl + arrowkeys: scroll active modal up and down",
+            "    - q: close active modal",
+            "    - tab: autocomplete",
+            "",
+            "Commands:",
+            "    - clear: clears output",
+            "    - quit or exit: exit the program",
+            "    - reload: reloads entire context (output, variables, etc)",
+            "    - use <namespace>: brings namespaced variables into global scope",
+            "    - load <script>: executes the given script",
+            "    - def: used to define functions",
+            "    - config: used to edit config values",
+            "    - show <vars/functions/help>: used to show modals like this",
+            "    - panel <vars/autocomplete>: toggles a panel",
+        ];
+        let lines: Vec<_> = lines.iter()
             .map(|line| Line::from(line.to_string()))
             .collect();
-        let block = Block::bordered().title("Commands");
-        Paragraph::new(lines).block(block)
+        let block = Block::bordered().title("Help");
+        Paragraph::new(lines).scroll((self.context.modal_scroll, 0)).block(block)
     }
 
     fn render_popup(&self, popup: &PopupName, area: Rect, buf: &mut Buffer) {
-        let [popup_area] = Layout::horizontal([Constraint::Percentage(80)])
+        let [popup_area] = Layout::horizontal([Constraint::Percentage(90)])
             .flex(Flex::Center)
             .areas(area);
-        let [popup_area] = Layout::vertical([Constraint::Percentage(80)])
+        let [popup_area] = Layout::vertical([Constraint::Percentage(90)])
             .flex(Flex::Center)
             .areas(popup_area);
 
@@ -174,7 +202,7 @@ impl App<'_> {
         let popup_context = match popup {
             PopupName::Vars => self.get_vars_popup(),
             PopupName::Functions => self.get_functions_popup(),
-            PopupName::Commands => self.get_commands_popup(),
+            PopupName::Help => self.get_help_popup(),
         };
 
         popup_context.render(popup_area, buf);

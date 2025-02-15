@@ -122,14 +122,15 @@ fn update_config(app: &mut App, tokens: &Vec<Token>) {
 }
 
 fn show_page(app: &mut App, tokens: &Vec<Token>) {
+    app.context.modal_scroll = 0;
     match tokens.get(1) {
         Some(Token::Identifier(ident)) => match ident.as_str() {
             "vars" => app.context.current_popup = Some(PopupName::Vars),
             "functions" => app.context.current_popup = Some(PopupName::Functions),
-            "commands" => app.context.current_popup = Some(PopupName::Commands),
-            _ => app.context.push_history_text("usage: show <vars/functions/commands>"),
+            "help" => app.context.current_popup = Some(PopupName::Help),
+            _ => app.context.push_history_text("usage: show <vars/functions/help>"),
         },
-        _ => app.context.push_history_text("usage: show <vars/functions/commands>"),
+        _ => app.context.push_history_text("usage: show <vars/functions/help>"),
     }
 }
 

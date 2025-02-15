@@ -3,6 +3,7 @@ use std::{io, rc::Rc};
 use crate::parser::{self, highlighting::{get_highlight_tokens, HighlightToken, HighlightTokenType}, syntax_tree::{self, Expression}, tokens::Token};
 use super::{builtin_functions, commands, config::Config, executor::{RuntimeError, Value}, user_scripts::{self, ScriptError}};
 
+use crossterm::event::KeyModifiers;
 use ratatui::{
     prelude::*,
     crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind},
@@ -30,11 +31,12 @@ pub struct FunctionDef {
 pub enum PopupName {
     Vars,
     Functions,
-    Commands,
+    Help,
 }
 
 pub struct Context<'a> {
     pub history: Vec<HistoryEntry>,
+    pub modal_scroll: u16,
     pub history_scroll: u16,
     pub should_scroll_to_fit: bool,
     pub current_line: String,
@@ -104,6 +106,7 @@ impl Default for Context<'_> {
     fn default() -> Self {
         let mut ctx = Context {
             history: Vec::new(),
+            modal_scroll: 0,
             history_scroll: 0,
             should_scroll_to_fit: true,
             current_line: String::new(),
@@ -187,11 +190,17 @@ impl App<'_> {
         match key_event.code {
             KeyCode::Enter => self.execute_current_line(),
             KeyCode::Backspace => {self.context.current_line.pop();},
-            KeyCode::Down => {self.context.history_scroll += 1;},
+            KeyCode::Down => {
+                match key_event.modifiers.contains(KeyModifiers::from_bits_retain(0b0000_0010)) {
+                    true => self.context.modal_scroll += 1, // ALT key
+                    false => self.context.history_scroll += 1,
+                };
+            },
             KeyCode::Up => {
-                if self.context.history_scroll > 0 {
-                    self.context.history_scroll -= 1;
-                }
+                match key_event.modifiers.contains(KeyModifiers::from_bits_retain(0b0000_0010)) {
+                    true => if self.context.modal_scroll > 0 {self.context.modal_scroll -= 1;},
+                    false => if self.context.history_scroll > 0 {self.context.history_scroll -= 1;},
+                };
             },
             KeyCode::Tab => {
                 let mut tokens = get_highlight_tokens(&self.context.current_line);

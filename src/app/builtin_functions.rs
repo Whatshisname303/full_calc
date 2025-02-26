@@ -175,6 +175,24 @@ fn rref(_values: Vec<Value>) -> Result<Value, RuntimeError> {
     todo!();
 }
 
+fn log(values: Vec<Value>) -> Result<Value, RuntimeError> {
+    let num = match values.get(0) {
+        Some(Value::Number(num)) => num,
+        _ => return Err(RuntimeError::BuiltinFuncErr("log expects a number".to_string())),
+    };
+    match values.get(1) {
+        Some(Value::Number(base)) => Ok(Value::Number(num.log(*base))),
+        _ => Ok(Value::Number(num.log10())),
+    }
+}
+
+fn ln(values: Vec<Value>) -> Result<Value, RuntimeError> {
+    match values.get(0) {
+        Some(Value::Number(input)) => Ok(Value::Number(input.ln())),
+        _ => Err(RuntimeError::BuiltinFuncErr("ln expects a number".to_string())),
+    }
+}
+
 fn sin(values: Vec<Value>) -> Result<Value, RuntimeError> {
     match values.get(0) {
         Some(Value::Number(input)) => Ok(Value::Number(input.sin())),
@@ -302,7 +320,7 @@ fn trans(mat: &Vec<Vec<f64>>) -> Vec<Vec<f64>> {
     output
 }
 
-pub static FUNCTIONS: [(&str, &[&str], fn(Vec<Value>) -> Result<Value, RuntimeError>); 16] = [
+pub static FUNCTIONS: [(&str, &[&str], fn(Vec<Value>) -> Result<Value, RuntimeError>); 18] = [
     ("std.dot", &["vec1", "vec2"], dot),
     ("std.cross", &["vec1", "vec2"], cross),
     ("std.unit", &["vector"], unit),
@@ -311,6 +329,8 @@ pub static FUNCTIONS: [(&str, &[&str], fn(Vec<Value>) -> Result<Value, RuntimeEr
     ("std.det", &["matrix"], det),
     ("std.transpose", &["matrix"], transpose),
     ("std.rref", &["matrix"], rref),
+    ("std.log", &["number", "base"], log),
+    ("std.ln", &["number"], ln),
     ("std.sin", &["number"], sin),
     ("std.cos", &["number"], cos),
     ("std.tan", &["number"], tan),

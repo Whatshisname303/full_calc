@@ -103,7 +103,12 @@ fn load_script(app: &mut App, tokens: &Vec<Token>) {
                         },
                         _ => app.context.push_history_text("script not found"),
                     }
-                }
+                },
+                Err(ScriptError::OsDoesNotSupportConfigDir) => {
+                    app.context.push_history_text(
+                        "can't locate config folder on your operating system, try removing config lines from your scripts"
+                    );
+                },
             }
         },
         _ => app.context.push_history_msg("usage: load <scriptname>"),
@@ -118,7 +123,8 @@ fn declare_function(app: &mut App, tokens: &Vec<Token>) {
 }
 
 fn update_config(app: &mut App, tokens: &Vec<Token>) {
-    app.update_config(tokens);
+    let response = app.config.update_from_tokens(&tokens[1..]);
+    app.context.push_history_text(&response);
 }
 
 fn show_page(app: &mut App, tokens: &Vec<Token>) {

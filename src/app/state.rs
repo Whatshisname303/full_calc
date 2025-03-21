@@ -94,12 +94,6 @@ impl Context<'_> {
             is_output: true,
         });
     }
-
-    pub fn count_visible_lines(&mut self) -> usize {
-        self.history.iter()
-            .map(|entry| entry.tokens.split(|t| t.kind == HighlightTokenType::Newline).count())
-            .sum()
-    }
 }
 
 impl Default for Context<'_> {
@@ -235,11 +229,38 @@ impl App<'_> {
         if self.context.should_scroll_to_fit {
             self.context.should_scroll_to_fit = false;
             let height = frame.area().height as isize;
-            let lines = self.context.count_visible_lines() as isize;
-            let required = lines - height + 1;
+            let lines = self.count_visible_lines(frame.area());
+            let required = lines as isize - height + 1;
             let target = required.max(self.context.history_scroll as isize);
             self.context.history_scroll = target.max(0) as u16;
         }
+    }
+
+    fn count_visible_lines(&mut self, area: Rect) -> usize {
+        let (text_area, _) = self.get_horizontal_layout(area);
+        let width = text_area.width as usize;
+
+        let mut total = 0;
+
+        for entry in &self.context.history {
+            total += 1;
+            let mut line_len = 0;
+            for token in &entry.tokens {
+                let token_len = token.text.len();
+                line_len += token_len;
+                if token.kind == HighlightTokenType::Newline {
+                    total += 1;
+                    line_len = 0;
+                }
+                else if line_len > width && token.kind != HighlightTokenType::Space {
+                    if line_len - token_len > 0 {
+                        total += 1;
+                        line_len = token_len;
+                    }
+                }
+            }
+        }
+        total
     }
 
     pub fn run_script(&mut self, script_name: &str) -> Result<(), ScriptError> {

@@ -11,8 +11,6 @@ use crate::parser::highlighting::{get_highlight_tokens, HighlightToken, Highligh
 
 use super::{config::Panel, state::{App, PopupName}};
 
-
-
 impl App<'_> {
     fn map_token_colors(&self, token: &HighlightToken) -> Span<'_> {
         let theme = &self.config.theme;
@@ -32,7 +30,7 @@ impl App<'_> {
         }
     }
 
-    fn get_horizontal_layout(&self, area: Rect) -> (Rect, Rect) {
+    pub fn get_horizontal_layout(&self, area: Rect) -> (Rect, Rect) {
         let [text_area, panel_area] = match self.config.panels.len() {
             0 => Layout::horizontal([
                 Constraint::Percentage(100),
@@ -47,21 +45,38 @@ impl App<'_> {
     }
 
     fn render_text_area(&self, area: Rect, buf: &mut Buffer) {
-        let mut lines: Vec<Line<'_>> = self.context.history.iter().flat_map(|history_entry| {
-            let bg_color = match history_entry.is_output {
+        let mut lines = Vec::new();
+
+        for entry in &self.context.history {
+            lines.push(Vec::new());
+
+            let mut line_length = 0;
+
+            let bg_color = match entry.is_output {
                 true => self.config.theme.result_line_bg,
                 false => self.config.theme.input_line_bg,
             };
-            history_entry.tokens
-                .split(|token| token.kind == HighlightTokenType::Newline)
-                .map(|tokens|
-                    tokens.iter()
-                        .map(|token| self.map_token_colors(token))
-                        .collect::<Vec<_>>()
-                )
-                .map(|tokens| Line::from(tokens).bg(bg_color))
-                .collect::<Vec<_>>()
-        }).collect();
+
+            for token in &entry.tokens {
+                let token_len = token.text.len() as u16;
+                line_length += token_len;
+                if token.kind == HighlightTokenType::Newline {
+                    lines.push(Vec::new());
+                    line_length = 0;
+                    continue;
+                }
+                if line_length > area.width && token.kind != HighlightTokenType::Space {
+                    if line_length - token_len > 0 {
+                        lines.push(Vec::new());
+                        line_length = token_len;
+                    }
+                }
+                let span = self.map_token_colors(token).bg(bg_color);
+                lines.last_mut().unwrap().push(span);
+            }
+        }
+
+        let mut lines: Vec<_> = lines.into_iter().map(Line::from).collect();
 
         let current_line = get_highlight_tokens(&self.context.current_line)
             .iter()

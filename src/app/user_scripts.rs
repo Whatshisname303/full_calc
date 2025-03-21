@@ -2,10 +2,9 @@ use std::fmt;
 use std::fs;
 use std::path::PathBuf;
 
-pub static DEFAULT_INIT_SCRIPT_CONTENT: &str = "
--- this is a comment from an auto generated script
--- use 'config script show' to see the file location
-";
+pub static DEFAULT_INIT_SCRIPT_CONTENT: &str =
+"-- this is a comment from an auto generated script
+-- use 'config script show' to display file location";
 
 #[derive(Debug)]
 pub enum ScriptError {

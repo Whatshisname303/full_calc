@@ -1,7 +1,4 @@
-// I have no clue if this shit works at all
-// deleted the tests and haven't been willing to rewrite the utility functions
-
-use std:: error::Error;
+use std::error::Error;
 
 #[derive(Debug)]
 enum TokenType {
@@ -31,6 +28,7 @@ static OPERATORS: &[(&str, Token)] = &[
 pub enum Token {
     Identifier(String),
     Number(String),
+    Comment(String),
     None,
     OpenParen,
     CloseParen,
@@ -119,9 +117,7 @@ impl TokenState {
                     // will be more polite in the future
                 }
             },
-            TokenType::Unknown => {
-                return Err("how did I get here...".into())
-            },
+            TokenType::Unknown => {},
         };
 
         Ok(())
@@ -141,8 +137,15 @@ fn is_ident(ch: char) -> bool {
 
 pub fn tokenize(line: &str) -> Result<Vec<Token>, Box<dyn Error>> {
     let mut token_state = TokenState::default();
+    let chars: Vec<_> = line.chars().collect();
 
-    for ch in line.chars() {
+    for (i, ch) in line.char_indices() {
+        if let ('-', Some(&'-')) = (ch, chars.get(i+1)) {
+            token_state.flush_token()?;
+            token_state.tokens.push(Token::Comment(String::from(&line[i..])));
+            return token_state.consume();
+        }
+
         match token_state.get_type() {
             TokenType::Identifier => {
                 if ch.is_whitespace() {

@@ -205,6 +205,7 @@ impl TreeBuilder {
         match self.take() {
             Token::Identifier(identifier) => Ok(Expression::Identifier(identifier.clone())),
             Token::Number(num) => Ok(Expression::Number(num.clone())),
+            Token::Comment(_) => self.parse_base(),
             Token::CloseParen | Token::None => Ok(Expression::Empty),
             Token::OpenParen => {
                 let expression = self.parse()?;

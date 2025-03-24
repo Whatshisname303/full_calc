@@ -93,7 +93,7 @@ impl TokenState {
         }
     }
 
-    fn flush_token(&mut self) -> Result<(), Box<dyn Error>> {
+    fn flush_token(&mut self) -> Result<(), String> {
         match self.get_type() {
             TokenType::Identifier => {
                 if self.current_buffer.chars().next().unwrap().is_alphabetic() {
@@ -115,7 +115,7 @@ impl TokenState {
                     self.tokens.push(op_type.clone());
                     self.current_buffer.clear();
                 } else {
-                    return Err("unknown operator: (fuck you)".into());
+                    return Err(format!("unknown operator: {}", self.current_buffer));
                     // will be more polite in the future
                 }
             },

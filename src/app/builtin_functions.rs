@@ -123,6 +123,10 @@ fn inv(values: Vec<Value>) -> Result<Value, RuntimeError> {
         return Err(RuntimeError::BuiltinFuncErr("inv requires square matrix".to_string()));
     }
 
+    if rows == 1 {
+        return Ok(Value::Matrix(vec![vec![1.0/matrix[0][0]]]));
+    }
+
     let det = det_recurse(matrix);
 
     if det == 0.0 {
@@ -290,6 +294,14 @@ fn submatrix(matrix: &Vec<Vec<f64>>, row: usize, col: usize) -> Vec<Vec<f64>> {
 
 fn adjoint(matrix: &Vec<Vec<f64>>) -> Vec<Vec<f64>> {
     let size = matrix.len();
+
+    if size == 2 {
+        return vec![
+            vec![matrix[1][1], -matrix[0][1]],
+            vec![-matrix[1][0], matrix[0][0]],
+        ];
+    }
+
     let mut output = vec![Vec::with_capacity(size); size];
 
     for row in 0..size {

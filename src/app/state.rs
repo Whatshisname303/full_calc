@@ -298,6 +298,11 @@ impl App<'_> {
             tokens.insert(0, Token::Identifier("ans".to_string()));
         }
 
+        match tokens.get(0) {
+            Some(Token::Comment(_)) | None => return,
+            _ => {},
+        };
+
         let execution_response = match syntax_tree::generate_syntax_tree(tokens) {
             Ok(tree) => match self.context.execute(tree) {
                 Ok(value) => {

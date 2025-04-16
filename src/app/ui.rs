@@ -78,10 +78,12 @@ impl App<'_> {
 
         let mut lines: Vec<_> = lines.into_iter().map(Line::from).collect();
 
-        let current_line = get_highlight_tokens(&self.context.current_line)
+        let mut current_line = get_highlight_tokens(&self.context.current_line)
             .iter()
             .map(|token| self.map_token_colors(token))
             .collect::<Vec<_>>();
+
+        current_line.push(Span::from("█"));
 
         lines.push(Line::from(current_line).bg(self.config.theme.current_line_bg));
 

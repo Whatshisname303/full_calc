@@ -3,7 +3,7 @@ use std::{io, rc::Rc};
 use crate::parser::{self, highlighting::{get_highlight_tokens, HighlightToken, HighlightTokenType}, syntax_tree::{self, Expression}, tokens::Token};
 use super::{builtin_functions, commands, config::Config, executor::{RuntimeError, Value}, user_scripts::{self, ScriptError}};
 
-use crossterm::event::KeyModifiers;
+use crossterm::event::{MouseEvent, MouseEventKind};
 use ratatui::{
     prelude::*,
     crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind},
@@ -94,6 +94,20 @@ impl Context<'_> {
             is_output: true,
         });
     }
+
+    pub fn scroll_up(&mut self) {
+        match self.current_popup {
+            Some(_) => if self.modal_scroll > 0 { self.modal_scroll -= 1 },
+            None => if self.history_scroll > 0 { self.history_scroll -= 1 },
+        };
+    }
+
+    pub fn scroll_down(&mut self) {
+        match self.current_popup {
+            Some(_) => self.modal_scroll += 1,
+            None => self.history_scroll += 1,
+        };
+    }
 }
 
 impl Default for Context<'_> {
@@ -153,8 +167,9 @@ impl App<'_> {
             // crossterm also emits key release and repeat events on Windows.
             Event::Key(key_event) if key_event.kind == KeyEventKind::Press => {
                 self.handle_key_down(key_event)
-            }
-            _ => {}
+            },
+            Event::Mouse(mouse_event) => self.handle_mouse_event(mouse_event),
+            _ => {},
         };
         Ok(())
     }
@@ -184,18 +199,8 @@ impl App<'_> {
         match key_event.code {
             KeyCode::Enter => self.execute_current_line(),
             KeyCode::Backspace => {self.context.current_line.pop();},
-            KeyCode::Down => {
-                match key_event.modifiers.contains(KeyModifiers::from_bits_retain(0b0000_0010)) {
-                    true => self.context.modal_scroll += 1, // ALT key
-                    false => self.context.history_scroll += 1,
-                };
-            },
-            KeyCode::Up => {
-                match key_event.modifiers.contains(KeyModifiers::from_bits_retain(0b0000_0010)) {
-                    true => if self.context.modal_scroll > 0 {self.context.modal_scroll -= 1;},
-                    false => if self.context.history_scroll > 0 {self.context.history_scroll -= 1;},
-                };
-            },
+            KeyCode::Down => self.context.scroll_down(),
+            KeyCode::Up => self.context.scroll_up(),
             KeyCode::Tab => {
                 let mut tokens = get_highlight_tokens(&self.context.current_line);
                 if let Some(token) = tokens.pop() {
@@ -218,6 +223,14 @@ impl App<'_> {
                     self.context.current_line.push(char);
                 }
             },
+            _ => {},
+        };
+    }
+
+    fn handle_mouse_event(&mut self, mouse_event: MouseEvent) {
+        match mouse_event.kind {
+            MouseEventKind::ScrollUp => self.context.scroll_up(),
+            event::MouseEventKind::ScrollDown => self.context.scroll_down(),
             _ => {},
         };
     }

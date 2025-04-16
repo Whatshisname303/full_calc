@@ -3,7 +3,7 @@ use std::{io, rc::Rc};
 use crate::parser::{self, highlighting::{get_highlight_tokens, HighlightToken, HighlightTokenType}, syntax_tree::{self, Expression}, tokens::Token};
 use super::{builtin_functions, commands, config::Config, executor::{RuntimeError, Value}, user_scripts::{self, ScriptError}};
 
-use crossterm::event::{MouseEvent, MouseEventKind};
+use crossterm::event::{KeyModifiers, MouseEvent, MouseEventKind};
 use ratatui::{
     prelude::*,
     crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind},
@@ -38,6 +38,7 @@ pub struct Context<'a> {
     pub history: Vec<HistoryEntry>,
     pub modal_scroll: u16,
     pub history_scroll: u16,
+    pub copy_scroll: usize,
     pub should_scroll_to_fit: bool,
     pub current_line: String,
     pub vars: Vec<(String, Value)>,
@@ -116,6 +117,7 @@ impl Default for Context<'_> {
             history: Vec::new(),
             modal_scroll: 0,
             history_scroll: 0,
+            copy_scroll: 0,
             should_scroll_to_fit: true,
             current_line: String::new(),
             vars: Vec::new(),
@@ -196,11 +198,39 @@ impl App<'_> {
     }
 
     fn handle_key_down(&mut self, key_event: KeyEvent) {
+        if key_event.code != KeyCode::Up {
+            self.context.copy_scroll = 0;
+        }
+
         match key_event.code {
             KeyCode::Enter => self.execute_current_line(),
-            KeyCode::Backspace => {self.context.current_line.pop();},
+            KeyCode::Backspace => {
+                match key_event.modifiers.contains(KeyModifiers::CONTROL) {
+                    true => self.context.current_line.clear(),
+                    false => {self.context.current_line.pop();},
+                };
+            },
             KeyCode::Down => self.context.scroll_down(),
-            KeyCode::Up => self.context.scroll_up(),
+            KeyCode::Up => {
+                match key_event.modifiers.contains(KeyModifiers::CONTROL) {
+                    true => {
+                        let copy_line = self.context.history.iter()
+                            .rev()
+                            .filter(|line| !line.is_output)
+                            .nth(self.context.copy_scroll);
+                        match copy_line {
+                            Some(line) => {
+                                self.context.current_line = line.tokens.iter()
+                                    .map(|token| token.to_string())
+                                    .collect();
+                            },
+                            None => self.context.copy_scroll = 0,
+                        };
+                        self.context.copy_scroll += 1;
+                    },
+                    false => self.context.scroll_up(),
+                };
+            },
             KeyCode::Tab => {
                 let mut tokens = get_highlight_tokens(&self.context.current_line);
                 if let Some(token) = tokens.pop() {

@@ -171,8 +171,6 @@ impl App<'_> {
     fn get_help_popup(&self) -> Paragraph<'_> {
         let lines = [
             "General:",
-            "      This page is more than 10 lines, scroll down with ctrl + arrowkeys",
-            "",
             "      More detailed docs available at github.com/Whatshisname303/full_calc",
             "",
             "      Define matrices by separating columns with ',' and rows with ';'",
@@ -182,7 +180,8 @@ impl App<'_> {
             "",
             "Controls:",
             "    - arrowkeys: scroll view up and down",
-            "    - ctrl + arrowkeys: scroll active modal up and down",
+            "    - ctrl + up: copy line",
+            "    - ctrl + backspace: delete line",
             "    - q: close active modal",
             "    - tab: autocomplete",
             "",

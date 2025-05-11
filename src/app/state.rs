@@ -316,21 +316,13 @@ impl App<'_> {
     }
 
     fn execute_current_line(&mut self) {
-        let tokens = parser::tokens::tokenize(&self.context.current_line);
+        let mut tokens = parser::tokens::tokenize(&self.context.current_line);
 
         let highlight_tokens = get_highlight_tokens(&self.context.current_line);
         self.context.history.push(HistoryEntry {tokens: highlight_tokens, is_output: false});
 
         self.context.current_line.clear();
         self.context.should_scroll_to_fit = true;
-
-        let mut tokens = match tokens {
-            Ok(tokens) => tokens,
-            Err(e) => {
-                self.context.push_history_msg(&e.to_string());
-                return;
-            }
-        };
 
         let processed = commands::handle_commands(self, &tokens);
         if processed {

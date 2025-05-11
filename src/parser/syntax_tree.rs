@@ -230,7 +230,7 @@ mod tests {
     use crate::parser::tokens::*;
 
     fn e(s: &str) -> Expression {
-        let tokens = tokenize(s).unwrap();
+        let tokens = tokenize(s);
         generate_syntax_tree(tokens).unwrap()
     }
 

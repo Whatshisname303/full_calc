@@ -74,7 +74,7 @@ mod tests {
     use crate::app::state::FunctionDef;
 
     fn e(s: &str) -> Result<FunctionDef, FunctionDefinitionError> {
-        parse_function_definition(&tokenize(s).unwrap())
+        parse_function_definition(&tokenize(s))
     }
 
     #[test]

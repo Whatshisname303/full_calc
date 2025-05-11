@@ -1,4 +1,4 @@
-use std::{error::Error, fmt};
+use std::fmt;
 
 #[derive(Debug)]
 enum TokenType {
@@ -29,6 +29,7 @@ pub enum Token {
     Identifier(String),
     Number(String),
     Comment(String),
+    Unknown(String),
     None,
     OpenParen,
     CloseParen,
@@ -52,6 +53,7 @@ impl fmt::Display for Token {
             Token::Identifier(s) => write!(f, "{s}"),
             Token::Number(s) => write!(f, "{s}"),
             Token::Comment(s) => write!(f, "{s}"),
+            Token::Unknown(s) => write!(f, "{s}"),
             Token::None => write!(f, ""),
             Token::OpenParen => write!(f, "("),
             Token::CloseParen => write!(f, ")"),
@@ -98,7 +100,6 @@ struct TokenState {
     current_buffer: String,
 }
 
-
 impl TokenState {
     fn continues_op(&self, ch: char) -> bool {
         let mut joined = self.current_buffer.clone();
@@ -116,7 +117,7 @@ impl TokenState {
         }
     }
 
-    fn flush_token(&mut self) -> Result<(), String> {
+    fn flush_token(&mut self) {
         match self.get_type() {
             TokenType::Identifier => {
                 if self.current_buffer.chars().next().unwrap().is_alphabetic() {
@@ -138,21 +139,18 @@ impl TokenState {
                     self.tokens.push(op_type.clone());
                     self.current_buffer.clear();
                 } else {
-                    return Err(format!("unknown operator: {}", self.current_buffer));
-                    // will be more polite in the future
+                    self.tokens.push(Token::Unknown(std::mem::take(&mut self.current_buffer)));
                 }
             },
             TokenType::Unknown => {},
         };
-
-        Ok(())
     }
 
-    fn consume(mut self) -> Result<Vec<Token>, Box<dyn Error>> {
+    fn consume(mut self) -> Vec<Token> {
         if !self.current_buffer.is_empty() {
-            self.flush_token()?;
+            self.flush_token();
         }
-        Ok(self.tokens)
+        self.tokens
     }
 }
 
@@ -160,13 +158,13 @@ fn is_ident(ch: char) -> bool {
     ch.is_alphanumeric() || ch == '.'
 }
 
-pub fn tokenize(line: &str) -> Result<Vec<Token>, Box<dyn Error>> {
+pub fn tokenize(line: &str) -> Vec<Token> {
     let mut token_state = TokenState::default();
     let chars: Vec<_> = line.chars().collect();
 
     for (i, ch) in line.char_indices() {
         if let ('-', Some(&'-')) = (ch, chars.get(i+1)) {
-            token_state.flush_token()?;
+            token_state.flush_token();
             token_state.tokens.push(Token::Comment(String::from(&line[i..])));
             return token_state.consume();
         }
@@ -174,25 +172,25 @@ pub fn tokenize(line: &str) -> Result<Vec<Token>, Box<dyn Error>> {
         match token_state.get_type() {
             TokenType::Identifier => {
                 if ch.is_whitespace() {
-                    token_state.flush_token()?;
+                    token_state.flush_token();
                 } else if is_ident(ch) {
                     token_state.current_buffer.push(ch);
                 } else {
-                    token_state.flush_token()?;
+                    token_state.flush_token();
                     token_state.current_buffer.push(ch);
                 }
             },
             TokenType::Operator => {
                 if ch.is_whitespace() {
-                    token_state.flush_token()?;
+                    token_state.flush_token();
                 } else if is_ident(ch) {
-                    token_state.flush_token()?;
+                    token_state.flush_token();
                     token_state.current_buffer.push(ch);
                 } else if token_state.continues_op(ch) {
                     token_state.current_buffer.push(ch);
 
                 } else {
-                    token_state.flush_token()?;
+                    token_state.flush_token();
                     token_state.current_buffer.push(ch);
                 }
             },
@@ -213,7 +211,7 @@ mod tests {
 
     #[test]
     fn basic_generation() {
-        let t = tokenize("hello there").unwrap();
+        let t = tokenize("hello there");
         assert_eq!(t, vec![
             Token::Identifier("hello".to_string()),
             Token::Identifier("there".to_string()),
@@ -221,7 +219,7 @@ mod tests {
     }
     #[test]
     fn literals() {
-        let t = tokenize(".123+hi-var2").unwrap();
+        let t = tokenize(".123+hi-var2");
         assert_eq!(t, vec![
             Token::Number(".123".to_string()),
             Token::Plus,
@@ -232,7 +230,7 @@ mod tests {
     }
     #[test]
     fn operator_mashing() {
-        let t = tokenize("3^-1=>-a").unwrap();
+        let t = tokenize("3^-1=>-a");
         assert_eq!(t, vec![
             Token::Number("3".to_string()),
             Token::Pow,
@@ -242,14 +240,5 @@ mod tests {
             Token::Minus,
             Token::Identifier("a".to_string()),
         ]);
-    }
-    #[test]
-    fn invalid_operator() {
-        let t = vec![
-            tokenize("?"),
-            tokenize("a <= 1"),
-            tokenize("#hi"),
-        ];
-        t.iter().for_each(|t| assert!(t.is_err()));
     }
 }

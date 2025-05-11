@@ -11,10 +11,24 @@ impl Config {
             _ => return "use 'show help' to get a complete list of config options".to_string(),
         };
         match config_opt {
+            "cursor" => self.update_cursor(&input[1..]),
             "script" => self.update_script(&input[1..]),
             "trig" => self.update_trig(&input[1..]),
             "theme" => self.update_theme(&input[1..]),
             _ => format!("unknown option {}, use 'show help' to get a complete list of config options", config_opt),
+        }
+    }
+
+    fn update_cursor(&mut self, input: &[Token]) -> String {
+        match input.get(0) {
+            Some(token) => {
+                self.cursor = token.to_string();
+                format!("set cursor to {}", token.to_string())
+            },
+            None => {
+                self.cursor = String::new();
+                "cleared cursor".to_string()
+            }
         }
     }
 
@@ -108,6 +122,7 @@ impl Config {
             "resultBg" => self.theme.result_line_bg = color,
             "currentBg" => self.theme.current_line_bg = color,
             "text" => self.theme.text = color,
+            "cursor" => self.theme.cursor = color,
             _ => return "unknown theme option".to_string(),
         };
         return "theme option updated".to_string();
@@ -127,9 +142,6 @@ pub struct Theme {
     pub divider: Color,
     pub text: Color,
     pub cursor: Color,
-
-    pub v_show_dividers: bool,
-    pub v_cursor: char,
 }
 
 impl Default for Theme {
@@ -146,8 +158,6 @@ impl Default for Theme {
             divider: Color::White,
             text: Color::Rgb(240, 240, 240),
             cursor: Color::White,
-            v_show_dividers: true,
-            v_cursor: '|',
         }
     }
 }
@@ -161,11 +171,8 @@ pub enum Panel {
 
 #[derive(Debug)]
 pub struct Config {
-    pub show_output: bool,
-    pub auto_brace: bool,
-    pub expand_matrices: bool,
     pub is_radians: bool,
-
+    pub cursor: String,
     pub theme: Theme,
     pub panels: Vec<Panel>,
     pub tab_width: usize,
@@ -174,10 +181,8 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         Config {
-            show_output: true,
-            auto_brace: true,
-            expand_matrices: true,
             is_radians: false,
+            cursor: "█".to_string(),
             theme: Theme::default(),
             panels: vec![Panel::Autocomplete, Panel::Variables],
             tab_width: 4,

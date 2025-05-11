@@ -83,7 +83,7 @@ impl App<'_> {
             .map(|token| self.map_token_colors(token))
             .collect::<Vec<_>>();
 
-        current_line.push(Span::from("█"));
+        current_line.push(Span::from(&self.config.cursor).fg(self.config.theme.cursor));
 
         lines.push(Line::from(current_line).bg(self.config.theme.current_line_bg));
 

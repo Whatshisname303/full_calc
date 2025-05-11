@@ -1,4 +1,4 @@
-use std::error::Error;
+use std::{error::Error, fmt};
 
 #[derive(Debug)]
 enum TokenType {
@@ -44,6 +44,31 @@ pub enum Token {
     Comma,
     Colon,
     Semicolon,
+}
+
+impl fmt::Display for Token {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Token::Identifier(s) => write!(f, "{s}"),
+            Token::Number(s) => write!(f, "{s}"),
+            Token::Comment(s) => write!(f, "{s}"),
+            Token::None => write!(f, ""),
+            Token::OpenParen => write!(f, "("),
+            Token::CloseParen => write!(f, ")"),
+            Token::OpenBracket => write!(f, "["),
+            Token::CloseBracket => write!(f, "]"),
+            Token::Pow => write!(f, "^"),
+            Token::Mult => write!(f, "*"),
+            Token::Div => write!(f, "/"),
+            Token::Plus => write!(f, "+"),
+            Token::Minus => write!(f, "-"),
+            Token::Assign => write!(f, "="),
+            Token::AltAssign => write!(f, "=>"),
+            Token::Comma => write!(f, ","),
+            Token::Colon => write!(f, ":"),
+            Token::Semicolon => write!(f, ";"),
+        }
+    }
 }
 
 impl Token {
